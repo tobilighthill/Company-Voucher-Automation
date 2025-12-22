@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cash Voucher System - LightHill</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="voucher-card">
+            <!-- Header Section -->
+            <div class="header-section">
+                <div class="header-left">
+                    <div class="company-logo">
+                        <img src="lighthill-logo.png" alt="LightHill Conglomerate" class="logo-img">
+                    </div>
+                    <div class="header-info">
+                        <h1 class="app-title">Cash Voucher</h1>
+                        <p class="app-subtitle">LightHill Conglomerate - Adding Values</p>
+                    </div>
+                </div>
+                <div class="voucher-type-selector">
+                    <button class="type-btn active" data-type="petty-cash">
+                        <span class="type-icon">💰</span>
+                        <span>Petty Cash</span>
+                    </button>
+                    <button class="type-btn" data-type="cash-req">
+                        <span class="type-icon">📋</span>
+                        <span>Cash Requisition</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Basic Information -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="title-icon">📝</span>
+                    Basic Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="name">Employee Name</label>
+                        <input type="text" id="name" class="form-input" placeholder="Enter full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="preparedBy">Prepared By</label>
+                        <input type="text" id="preparedBy" class="form-input" placeholder="Your name">
+                    </div>
+                    <div class="form-group">
+                        <label for="company">Company</label>
+                        <input type="text" id="company" class="form-input" placeholder="Company name">
+                    </div>
+                    <div class="form-group">
+                        <label for="department">Department</label>
+                        <input type="text" id="department" class="form-input" placeholder="Department">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Section -->
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="title-icon">💳</span>
+                        Transactions
+                    </h2>
+                    <button class="btn-add" id="addTransactionBtn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        Add Item
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="transactions-table" id="transactionsTable">
+                        <thead>
+                            <tr>
+                                <th>Qty</th>
+                                <th>Description</th>
+                                <th>Rate (₦)</th>
+                                <th>Amount (₦)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsBody">
+                            <!-- Rows will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="total-section">
+                    <div class="total-label">Total Amount</div>
+                    <div class="total-amount" id="totalAmount">₦0.00</div>
+                </div>
+            </div>
+
+            <!-- Bank Details -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="title-icon">🏦</span>
+                    Bank Details
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="accountName">Account Name</label>
+                        <input type="text" id="accountName" class="form-input" placeholder="Account holder name">
+                    </div>
+                    <div class="form-group">
+                        <label for="accountNumber">Account Number</label>
+                        <input type="text" id="accountNumber" class="form-input" placeholder="0123456789">
+                    </div>
+                    <div class="form-group">
+                        <label for="bankName">Bank Name</label>
+                        <input type="text" id="bankName" class="form-input" placeholder="Bank name">
+                    </div>
+                    <div class="form-group">
+                        <label for="approvedBy">Approved By (Email)</label>
+                        <input type="email" id="approvedBy" class="form-input" placeholder="approver@company.com">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="actions-section">
+                <button class="btn btn-primary" id="sendEmailBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2 5l8 5 8-5M2 5v10l8 5 8-5V5" />
+                    </svg>
+                    Send for Approval
+                </button>
+                <button class="btn btn-secondary" id="downloadPdfBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 14V4M10 14l-4-4M10 14l4-4M4 16h12" />
+                    </svg>
+                    Download PDF
+                </button>
+                <button class="btn btn-excel" id="downloadExcelBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M4 4h12v12H4zM4 8h12M8 4v12" stroke="white" stroke-width="2" fill="none" />
+                    </svg>
+                    Master Excel
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Status Toast Container -->
+    <div id="status-container"></div>
+
+    <!-- History Modal / Sidebar -->
+    <div class="history-section" id="historySection">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">📜</span>
+                Recent Vouchers
+            </h2>
+            <button class="btn-clear" id="clearHistoryBtn">Clear All</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <div class="empty-history">No history yet. Send a voucher to see it here!</div>
+        </div>
+    </div>
+
+
+    <!-- SheetJS Library for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
