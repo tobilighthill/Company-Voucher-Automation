@@ -379,38 +379,53 @@ function showActivationGuidance(approverEmail) {
     const overlay = document.createElement('div');
     overlay.id = 'premium-overlay';
     overlay.className = 'premium-success-overlay';
+
+    // Close when clicking outside the content
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+
     overlay.innerHTML = `
         <div class="overlay-content">
+            <button class="overlay-close-x" onclick="document.getElementById('premium-overlay').remove()">✕</button>
+            
             <div class="success-icon">✅</div>
             <h2>Voucher Sent Successfully!</h2>
-            <p>The voucher has been submitted to <strong>${approverEmail}</strong></p>
+            <p>Sent to <strong>${approverEmail}</strong></p>
             
             <div class="instruction-box">
-                <strong>⚠️ IMPORTANT - First Time Setup:</strong><br><br>
+                <strong>⚠️ First Time Setup:</strong><br><br>
                 
                 <strong>If this is the FIRST voucher to this email:</strong><br>
-                1. The approver will receive TWO emails:<br>
-                   • <strong>"Confirm Your Email"</strong> from FormSubmit<br>
-                   • Your voucher (after confirmation)<br><br>
+                1. Approver gets "Confirm Your Email" from FormSubmit<br>
+                2. They click "Confirm"<br>
+                3. Then they receive your voucher<br><br>
                 
-                2. <strong>They MUST click "Confirm"</strong> in the first email<br>
-                   (Check SPAM/Junk folder if not in inbox)<br><br>
-                
-                3. After confirmation, they'll receive your voucher<br><br>
-                
-                <strong>Future vouchers will arrive instantly!</strong><br>
-                This activation is only needed once per email address.
+                <strong>Future vouchers arrive instantly!</strong>
             </div>
             
-            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; font-size: 14px;">
-                <strong>📋 Tell the approver:</strong><br>
-                "Please check your email (including spam) for a message from FormSubmit and click 'Confirm Your Email'. After that, you'll receive the voucher."
-            </div>
-            
-            <button class="overlay-btn" onclick="this.parentElement.parentElement.remove()">I Understand</button>
+            <button class="overlay-btn" onclick="document.getElementById('premium-overlay').remove()">Got It!</button>
         </div>
     `;
     document.body.appendChild(overlay);
+
+    // Close with ESC key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Auto-close after 10 seconds
+    setTimeout(() => {
+        if (overlay.parentNode) {
+            overlay.remove();
+        }
+    }, 10000);
 }
 
 
