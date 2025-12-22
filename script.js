@@ -308,15 +308,15 @@ async function handleSendEmail() {
     // Save to local history immediately
     saveToHistory(voucherId);
 
-    // 3. Create the Payload (Matching your successful React structure)
+    // 3. Create the Payload - Clean structure for FormSubmit
     const payload = {
-        name: state.name,
-        company: state.company,
-        email: state.preparedBy || 'user@company.com',
-        voucher_id: voucherId,
-        total_amount: `₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        bank_details: `${state.bankName} | ${state.accountName} | ${state.accountNumber}`,
-        message: `Voucher Details:\n${summary}`,
+        Voucher_ID: voucherId,
+        Employee_Name: state.name,
+        Company: state.company,
+        Date: state.date,
+        Total_Amount: `₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        Bank_Details: `${state.bankName} | ${state.accountName} | ${state.accountNumber}`,
+        Transactions: summary,
         _subject: `Cash Voucher Approval: ${voucherId} (${state.name})`,
         _template: "table",
         _captcha: "false"
