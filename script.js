@@ -22,29 +22,32 @@ const state = {
 // ===================================
 // DOM Elements
 // ===================================
-const elements = {
-    dateInput: document.getElementById('date'),
-    preparedByInput: document.getElementById('preparedBy'),
-    companyInput: document.getElementById('company'),
-    departmentInput: document.getElementById('department'),
-    beneficiariesContainer: document.getElementById('beneficiariesContainer'),
-    addBeneficiaryBtn: document.getElementById('addBeneficiaryBtn'),
-    grandTotalAmount: document.getElementById('grandTotalAmount'),
-    approvedByInput: document.getElementById('approvedBy'),
-    sendEmailBtn: document.getElementById('sendEmailBtn'),
-    downloadPdfBtn: document.getElementById('downloadPdfBtn'),
-    downloadExcelBtn: document.getElementById('downloadExcelBtn'),
-    typeButtons: document.querySelectorAll('.type-btn'),
-    historyList: document.getElementById('historyList'),
-    clearHistoryBtn: document.getElementById('clearHistoryBtn')
-};
+let elements = {};
 
 // ===================================
 // Initialize Application
 // ===================================
 function init() {
+    // Initialize element references
+    elements = {
+        dateInput: document.getElementById('date'),
+        preparedByInput: document.getElementById('preparedBy'),
+        companyInput: document.getElementById('company'),
+        departmentInput: document.getElementById('department'),
+        beneficiariesContainer: document.getElementById('beneficiariesContainer'),
+        addBeneficiaryBtn: document.getElementById('addBeneficiaryBtn'),
+        grandTotalAmount: document.getElementById('grandTotalAmount'),
+        approvedByInput: document.getElementById('approvedBy'),
+        sendEmailBtn: document.getElementById('sendEmailBtn'),
+        downloadPdfBtn: document.getElementById('downloadPdfBtn'),
+        downloadExcelBtn: document.getElementById('downloadExcelBtn'),
+        typeButtons: document.querySelectorAll('.type-btn'),
+        historyList: document.getElementById('historyList'),
+        clearHistoryBtn: document.getElementById('clearHistoryBtn')
+    };
+
     // Set default date
-    elements.dateInput.value = state.date;
+    if (elements.dateInput) elements.dateInput.value = state.date;
 
     // Add initial beneficiary
     if (state.beneficiaries.length === 0) {
@@ -75,10 +78,15 @@ function setupEventListeners() {
     elements.approvedByInput.addEventListener('input', (e) => state.approvedBy = e.target.value);
 
     // Action buttons
-    elements.addBeneficiaryBtn.addEventListener('click', addBeneficiary);
-    elements.sendEmailBtn.addEventListener('click', handleSendEmail);
-    elements.downloadPdfBtn.addEventListener('click', handleDownloadPDF);
-    elements.downloadExcelBtn.addEventListener('click', handleDownloadExcel);
+    if (elements.addBeneficiaryBtn) {
+        elements.addBeneficiaryBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addBeneficiary();
+        });
+    }
+    if (elements.sendEmailBtn) elements.sendEmailBtn.addEventListener('click', handleSendEmail);
+    if (elements.downloadPdfBtn) elements.downloadPdfBtn.addEventListener('click', handleDownloadPDF);
+    if (elements.downloadExcelBtn) elements.downloadExcelBtn.addEventListener('click', handleDownloadExcel);
 
     // History listeners
     if (elements.clearHistoryBtn) {
@@ -716,6 +724,7 @@ function clearHistory() {
 window.removeBeneficiary = removeBeneficiary;
 window.addTransaction = addTransaction;
 window.deleteTransaction = deleteTransaction;
+window.addBeneficiary = addBeneficiary;
 
 // ===================================
 // Initialize on DOM Load
