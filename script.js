@@ -310,8 +310,12 @@ async function handleSendEmail() {
     elements.sendEmailBtn.disabled = true;
     elements.sendEmailBtn.innerHTML = `<span class="btn-spinner"></span> Sending to ${state.approvedBy}...`;
 
-    // 2. Prepare Unique Data
-    const voucherId = `LH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    // 2. Prepare Unique Data (Timestamp-based for 100% uniqueness)
+    const now = new Date();
+    const dateStr = now.toISOString().slice(2, 10).replace(/-/g, ''); // 260105
+    const timeStr = now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0'); // 1613
+    const randomSalt = Math.random().toString(36).substring(2, 4).toUpperCase(); // A4
+    const voucherId = `LH-${dateStr}-${timeStr}-${randomSalt}`;
     const grandTotal = state.beneficiaries.reduce((sum, b) => sum + b.transactions.reduce((s, t) => s + t.amount, 0), 0);
 
     // Build Detailed Summary for Email
