@@ -339,25 +339,28 @@ async function handleSendEmail() {
 
     // 3. Create the Payload - Clean structure for FormSubmit
     const payload = {
+        _subject: `Cash Voucher Approval: ${voucherId} (Prep: ${state.preparedBy})`,
         Voucher_ID: voucherId,
         Prepared_By: state.preparedBy,
-        Department: state.department,
+        Department: state.department || 'N/A',
         Company: state.company,
         Date: state.date,
-        Number_of_Beneficiaries: state.beneficiaries.length,
-        Grand_Total_Amount: `₦${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        Details: fullSummary,
-        _subject: `Cash Voucher Approval: ${voucherId} (Prepared by: ${state.preparedBy})`,
+        Total_Voucher_Amount: `₦${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        Beneficiaries_Count: state.beneficiaries.length,
+        Breakdown: fullSummary,
         _template: "table",
         _captcha: "false"
     };
 
     try {
-        showStatus('Launching Secure Transmission...', 'info');
+        showStatus('Sending to ' + state.approvedBy + '...', 'info');
+
+        // Trigger Google Sheets Sync in background immediately
+        syncToGoogleSheets(newEntry).catch(e => console.error('Sync error:', e));
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = `https://formsubmit.co/${state.approvedBy}`;
+        form.action = `https://formsubmit.co/${state.approvedBy.trim()}`;
         form.target = '_blank';
         form.style.display = 'none';
 
@@ -372,11 +375,8 @@ async function handleSendEmail() {
         document.body.appendChild(form);
         form.submit();
 
-        showStatus('Sent! Check the new tab for status.', 'success');
+        showStatus('SUCCESS: Check the new tab to finish!', 'success');
         showActivationGuidance(state.approvedBy);
-
-        // 4. Sync to Google Sheets (Cloud Backup)
-        syncToGoogleSheets(newEntry);
 
         // Reset local form for next use
         state.beneficiaries = [];
@@ -673,8 +673,13 @@ async function syncToGoogleSheets(voucherEntry) {
     try {
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // Apps Script requires no-cors for simple redirects
-            headers: { 'Content-Type': 'application/json' },
+            mode: 'no-cors', // Required for Google Apps Script redirects
+            cache: 'no-cache',
+            headers: {
+                // With no-cors, we cannot send 'Content-Type: application/json'
+                // We send as plain text and let the script handle its own parsing if needed,
+                // however most Apps Script doPost(e) methods work best with default form-data or simple text
+            },
             body: JSON.stringify(rows)
         });
         console.log('Syncing to Google Sheets...');
