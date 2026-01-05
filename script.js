@@ -1,17 +1,20 @@
 // ===================================
+// Cloud Sync Configuration
+// ===================================
+// 1. Follow the instructions in GOOGLE_SHEETS_SETUP.md to get this URL
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpqeS9CaljoT-mpyJwlSyHBdOiUCbwReQp_U_43Ny_eKqUDK0S058lIb60J-vWnz95kw/exec';
+const MASTER_SHEET_ID = '1wtgftAfsGB279J8suIGpcsFw8Tf3_FFekYjvzUuOflY';
+
+// ===================================
 // Application State
 // ===================================
 const state = {
     voucherType: 'petty-cash',
     date: new Date().toISOString().split('T')[0],
-    name: '',
     preparedBy: '',
     company: '',
     department: '',
-    transactions: [],
-    accountName: '',
-    accountNumber: '',
-    bankName: '',
+    beneficiaries: [], // Array of { id, employeeName, accountName, accountNumber, bankName, transactions: [] }
     approvedBy: '',
     history: JSON.parse(localStorage.getItem('voucher_history') || '[]')
 };
@@ -21,21 +24,16 @@ const state = {
 // ===================================
 const elements = {
     dateInput: document.getElementById('date'),
-    nameInput: document.getElementById('name'),
     preparedByInput: document.getElementById('preparedBy'),
     companyInput: document.getElementById('company'),
     departmentInput: document.getElementById('department'),
-    accountNameInput: document.getElementById('accountName'),
-    accountNumberInput: document.getElementById('accountNumber'),
-    bankNameInput: document.getElementById('bankName'),
+    beneficiariesContainer: document.getElementById('beneficiariesContainer'),
+    addBeneficiaryBtn: document.getElementById('addBeneficiaryBtn'),
+    grandTotalAmount: document.getElementById('grandTotalAmount'),
     approvedByInput: document.getElementById('approvedBy'),
-    transactionsBody: document.getElementById('transactionsBody'),
-    totalAmount: document.getElementById('totalAmount'),
-    addTransactionBtn: document.getElementById('addTransactionBtn'),
     sendEmailBtn: document.getElementById('sendEmailBtn'),
     downloadPdfBtn: document.getElementById('downloadPdfBtn'),
     downloadExcelBtn: document.getElementById('downloadExcelBtn'),
-    successMessage: document.getElementById('successMessage'),
     typeButtons: document.querySelectorAll('.type-btn'),
     historyList: document.getElementById('historyList'),
     clearHistoryBtn: document.getElementById('clearHistoryBtn')
@@ -48,8 +46,10 @@ function init() {
     // Set default date
     elements.dateInput.value = state.date;
 
-    // Add initial transaction row
-    addTransaction();
+    // Add initial beneficiary
+    if (state.beneficiaries.length === 0) {
+        addBeneficiary();
+    }
 
     // Render history
     renderHistory();
@@ -69,45 +69,16 @@ function setupEventListeners() {
 
     // Form inputs
     elements.dateInput.addEventListener('change', (e) => state.date = e.target.value);
-    elements.nameInput.addEventListener('input', (e) => state.name = e.target.value);
     elements.preparedByInput.addEventListener('input', (e) => state.preparedBy = e.target.value);
     elements.companyInput.addEventListener('input', (e) => state.company = e.target.value);
-    elements.departmentInput.addEventListener('input', (e) => state.department = e.target.value);
-    elements.accountNameInput.addEventListener('input', (e) => state.accountName = e.target.value);
-    elements.accountNumberInput.addEventListener('input', (e) => state.accountNumber = e.target.value);
-    elements.bankNameInput.addEventListener('input', (e) => state.bankName = e.target.value);
+    elements.departmentInput.addEventListener('change', (e) => state.department = e.target.value);
     elements.approvedByInput.addEventListener('input', (e) => state.approvedBy = e.target.value);
 
     // Action buttons
-    elements.addTransactionBtn.addEventListener('click', addTransaction);
+    elements.addBeneficiaryBtn.addEventListener('click', addBeneficiary);
     elements.sendEmailBtn.addEventListener('click', handleSendEmail);
     elements.downloadPdfBtn.addEventListener('click', handleDownloadPDF);
     elements.downloadExcelBtn.addEventListener('click', handleDownloadExcel);
-
-    // Auto-export on any data change (debounced)
-    const autoExportInputs = [
-        elements.dateInput,
-        elements.nameInput,
-        elements.preparedByInput,
-        elements.companyInput,
-        elements.departmentInput,
-        elements.accountNameInput,
-        elements.accountNumberInput,
-        elements.bankNameInput,
-        elements.approvedByInput
-    ];
-
-    autoExportInputs.forEach(input => {
-        // Auto-export removed as requested
-    });
-
-    // Better Focus Experience: Focus input when clicking anywhere in the form group
-    document.querySelectorAll('.form-group').forEach(group => {
-        group.addEventListener('click', () => {
-            const input = group.querySelector('.form-input');
-            if (input) input.focus();
-        });
-    });
 
     // History listeners
     if (elements.clearHistoryBtn) {
@@ -115,176 +86,207 @@ function setupEventListeners() {
     }
 }
 
+// ===================================
+// Beneficiary Management
+// ===================================
+function addBeneficiary() {
+    if (state.beneficiaries.length >= 5) {
+        showStatus('Maximum 5 beneficiaries allowed per voucher.', 'warning');
+        return;
+    }
 
-// ===================================
-// Auto-Export Timer
-// ===================================
-let autoExportTimer = null;
-
-function debounceAutoExport() {
-    clearTimeout(autoExportTimer);
-    autoExportTimer = setTimeout(() => {
-        autoExportToExcel();
-    }, 1000); // Wait 1 second after last change before exporting
-}
-
-// ===================================
-// Voucher Type Handler
-// ===================================
-function handleTypeChange(clickedBtn) {
-    elements.typeButtons.forEach(btn => btn.classList.remove('active'));
-    clickedBtn.classList.add('active');
-    state.voucherType = clickedBtn.dataset.type;
-}
-
-// ===================================
-// Transaction Management
-// ===================================
-function addTransaction() {
-    const transaction = {
+    const beneficiary = {
         id: Date.now(),
-        quantity: '',
-        description: '',
-        rate: '',
-        amount: 0
+        employeeName: '',
+        accountName: '',
+        accountNumber: '',
+        bankName: '',
+        transactions: [
+            { id: Date.now() + 1, quantity: '', description: '', rate: '', amount: 0 }
+        ]
     };
 
-    state.transactions.push(transaction);
-    renderTransactions();
+    state.beneficiaries.push(beneficiary);
+    renderBeneficiaries();
 }
 
-function deleteTransaction(id) {
-    if (state.transactions.length > 1) {
-        state.transactions = state.transactions.filter(t => t.id !== id);
-        renderTransactions();
+function removeBeneficiary(id) {
+    if (state.beneficiaries.length > 1) {
+        state.beneficiaries = state.beneficiaries.filter(b => b.id !== id);
+        renderBeneficiaries();
+        updateGrandTotal();
     }
 }
 
-function updateTransaction(id, field, value) {
-    const transaction = state.transactions.find(t => t.id === id);
-    if (transaction) {
-        transaction[field] = value;
+function updateBeneficiaryField(id, field, value) {
+    const beneficiary = state.beneficiaries.find(b => b.id === id);
+    if (beneficiary) {
+        beneficiary[field] = value;
+    }
+}
 
-        // Calculate amount
-        if (field === 'quantity' || field === 'rate') {
-            const qty = parseFloat(transaction.quantity) || 0;
-            const rate = parseFloat(transaction.rate) || 0;
-            transaction.amount = qty * rate;
+// ===================================
+// Transaction Management (Per Beneficiary)
+// ===================================
+function addTransaction(beneficiaryId) {
+    const beneficiary = state.beneficiaries.find(b => b.id === beneficiaryId);
+    if (beneficiary) {
+        beneficiary.transactions.push({
+            id: Date.now(),
+            quantity: '',
+            description: '',
+            rate: '',
+            amount: 0
+        });
+        renderBeneficiaries();
+    }
+}
 
-            // Update the specific amount cell in the UI without re-rendering everything
-            const row = elements.transactionsBody.querySelector(`[data-id="${id}"]`).closest('tr');
-            if (row) {
+function deleteTransaction(beneficiaryId, transactionId) {
+    const beneficiary = state.beneficiaries.find(b => b.id === beneficiaryId);
+    if (beneficiary && beneficiary.transactions.length > 1) {
+        beneficiary.transactions = beneficiary.transactions.filter(t => t.id !== transactionId);
+        renderBeneficiaries();
+        updateGrandTotal();
+    }
+}
+
+function updateTransaction(beneficiaryId, transactionId, field, value) {
+    const beneficiary = state.beneficiaries.find(b => b.id === beneficiaryId);
+    if (beneficiary) {
+        const transaction = beneficiary.transactions.find(t => t.id === transactionId);
+        if (transaction) {
+            transaction[field] = value;
+            if (field === 'quantity' || field === 'rate') {
+                const qty = parseFloat(transaction.quantity) || 0;
+                const rate = parseFloat(transaction.rate) || 0;
+                transaction.amount = qty * rate;
+
+                // Update local amounts and grand total
+                const totalEl = document.getElementById(`total-${beneficiaryId}`);
+                const bTotal = beneficiary.transactions.reduce((sum, t) => sum + t.amount, 0);
+                if (totalEl) totalEl.textContent = `₦${bTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+                // Update specific row amount
+                const row = document.querySelector(`[data-tid="${transactionId}"]`).closest('tr');
                 const amountCell = row.querySelector('.amount-cell');
-                if (amountCell) {
-                    amountCell.textContent = `₦${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                }
+                if (amountCell) amountCell.textContent = `₦${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+                updateGrandTotal();
             }
         }
-
-        updateTotal();
     }
 }
 
-function renderTransactions() {
-    elements.transactionsBody.innerHTML = '';
+function renderBeneficiaries() {
+    elements.beneficiariesContainer.innerHTML = '';
 
-    state.transactions.forEach(transaction => {
-        const row = document.createElement('tr');
-        row.className = 'transaction-row';
-        row.innerHTML = `
-            <td>
-                <input 
-                    type="number" 
-                    placeholder="0" 
-                    value="${transaction.quantity}"
-                    data-id="${transaction.id}"
-                    data-field="quantity"
-                    min="0"
-                    step="0.01"
-                    class="table-input"
-                >
-            </td>
-            <td>
-                <input 
-                    type="text" 
-                    placeholder="Item description" 
-                    value="${transaction.description}"
-                    data-id="${transaction.id}"
-                    data-field="description"
-                    class="table-input"
-                >
-            </td>
-            <td>
-                <div class="currency-input-wrapper">
-                    <span class="currency-symbol">₦</span>
-                    <input 
-                        type="number" 
-                        placeholder="0.00" 
-                        value="${transaction.rate}"
-                        data-id="${transaction.id}"
-                        data-field="rate"
-                        min="0"
-                        step="0.01"
-                        class="table-input rate-input"
-                    >
+    state.beneficiaries.forEach((b, index) => {
+        const block = document.createElement('div');
+        block.className = 'beneficiary-block';
+        block.innerHTML = `
+            <div class="beneficiary-header">
+                <h3 class="beneficiary-title">Beneficiary #${index + 1}</h3>
+                ${state.beneficiaries.length > 1 ? `<button class="btn-remove-beneficiary" onclick="removeBeneficiary(${b.id})">✕ Remove</button>` : ''}
+            </div>
+            
+            <div class="form-grid" style="margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label>Employee Name</label>
+                    <input type="text" class="form-input b-name" data-id="${b.id}" placeholder="Full Name" value="${b.employeeName}">
                 </div>
-            </td>
-            <td class="amount-cell">₦${transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td style="text-align: center;">
-                <button class="delete-btn" data-id="${transaction.id}" title="Delete row">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                        <path d="M6 2h6M2 4h14M3 4l1 11a2 2 0 002 2h6a2 2 0 002-2l1-11M7 8v5M11 8v5" stroke="currentColor" stroke-width="2" fill="none"/>
-                    </svg>
-                </button>
-            </td>
+                <div class="form-group">
+                    <label>Account Name</label>
+                    <input type="text" class="form-input b-acc-name" data-id="${b.id}" placeholder="Account Name" value="${b.accountName}">
+                </div>
+                <div class="form-group">
+                    <label>Account Number</label>
+                    <input type="text" class="form-input b-acc-num" data-id="${b.id}" placeholder="0123..." value="${b.accountNumber}">
+                </div>
+                <div class="form-group">
+                    <label>Bank Name</label>
+                    <input type="text" class="form-input b-bank" data-id="${b.id}" placeholder="Bank Name" value="${b.bankName}">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="transactions-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">Qty</th>
+                            <th>Description</th>
+                            <th style="width: 150px;">Rate (₦)</th>
+                            <th style="width: 150px;">Amount (₦)</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${b.transactions.map(t => `
+                            <tr>
+                                <td><input type="number" class="table-input qty-in" data-bid="${b.id}" data-tid="${t.id}" value="${t.quantity}"></td>
+                                <td><input type="text" class="table-input desc-in" data-bid="${b.id}" data-tid="${t.id}" value="${t.description}"></td>
+                                <td>
+                                    <div class="currency-input-wrapper">
+                                        <span class="currency-symbol">₦</span>
+                                        <input type="number" class="table-input rate-in" data-bid="${b.id}" data-tid="${t.id}" value="${t.rate}">
+                                    </div>
+                                </td>
+                                <td class="amount-cell">₦${t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                <td><button class="delete-btn" onclick="deleteTransaction(${b.id}, ${t.id})">✕</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <button class="btn-add" onclick="addTransaction(${b.id})">+ Add Item</button>
+                <div class="total-section">
+                    <span class="total-label">Subtotal:</span>
+                    <span class="total-amount" id="total-${b.id}">₦${b.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+            </div>
         `;
 
-        elements.transactionsBody.appendChild(row);
+        elements.beneficiariesContainer.appendChild(block);
     });
 
-    // Add event listeners once during render
-    elements.transactionsBody.querySelectorAll('input').forEach(input => {
-        input.addEventListener('input', (e) => {
-            const id = parseInt(e.target.dataset.id);
-            const field = e.target.dataset.field;
-            updateTransaction(id, field, e.target.value);
-        });
+    // Rebind listeners for inputs
+    elements.beneficiariesContainer.querySelectorAll('.b-name').forEach(i => i.addEventListener('input', (e) => updateBeneficiaryField(parseInt(e.target.dataset.id), 'employeeName', e.target.value)));
+    elements.beneficiariesContainer.querySelectorAll('.b-acc-name').forEach(i => i.addEventListener('input', (e) => updateBeneficiaryField(parseInt(e.target.dataset.id), 'accountName', e.target.value)));
+    elements.beneficiariesContainer.querySelectorAll('.b-acc-num').forEach(i => i.addEventListener('input', (e) => updateBeneficiaryField(parseInt(e.target.dataset.id), 'accountNumber', e.target.value)));
+    elements.beneficiariesContainer.querySelectorAll('.b-bank').forEach(i => i.addEventListener('input', (e) => updateBeneficiaryField(parseInt(e.target.dataset.id), 'bankName', e.target.value)));
 
-        // Focus highlighting
-        input.addEventListener('focus', (e) => {
-            e.target.closest('tr').classList.add('row-active');
-        });
-        input.addEventListener('blur', (e) => {
-            e.target.closest('tr').classList.remove('row-active');
-        });
-    });
+    elements.beneficiariesContainer.querySelectorAll('.qty-in').forEach(i => i.addEventListener('input', (e) => updateTransaction(parseInt(e.target.dataset.bid), parseInt(e.target.dataset.tid), 'quantity', e.target.value)));
+    elements.beneficiariesContainer.querySelectorAll('.desc-in').forEach(i => i.addEventListener('input', (e) => updateTransaction(parseInt(e.target.dataset.bid), parseInt(e.target.dataset.tid), 'description', e.target.value)));
+    elements.beneficiariesContainer.querySelectorAll('.rate-in').forEach(i => i.addEventListener('input', (e) => updateTransaction(parseInt(e.target.dataset.bid), parseInt(e.target.dataset.tid), 'rate', e.target.value)));
 
-    // Add event listeners to delete buttons
-    elements.transactionsBody.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const id = parseInt(btn.dataset.id);
-            deleteTransaction(id);
-        });
-    });
-
-    updateTotal();
+    updateGrandTotal();
 }
 
-function updateTotal() {
-    const total = state.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    elements.totalAmount.textContent = `₦${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function updateGrandTotal() {
+    const total = state.beneficiaries.reduce((sum, b) => {
+        return sum + b.transactions.reduce((s, t) => s + (t.amount || 0), 0);
+    }, 0);
+    elements.grandTotalAmount.textContent = `₦${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // ===================================
 // Email Handler
 // ===================================
-// ===================================
 // Email Handler (Formspree Integration)
 // ===================================
 async function handleSendEmail() {
     // 1. Validation
-    if (!state.name || !state.company || !state.approvedBy) {
-        showStatus('Please fill Name, Company, and Approver Email.', 'error');
+    if (!state.preparedBy || !state.company || !state.approvedBy) {
+        showStatus('Please fill Prepared By, Company, and Approver Email.', 'error');
+        return;
+    }
+
+    // Validate beneficiaries
+    const validBeneficiaries = state.beneficiaries.every(b => b.employeeName && b.bankName && b.accountNumber);
+    if (!validBeneficiaries) {
+        showStatus('Please ensure all beneficiaries have a name and bank details.', 'error');
         return;
     }
 
@@ -302,22 +304,42 @@ async function handleSendEmail() {
 
     // 2. Prepare Unique Data
     const voucherId = `LH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const total = state.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const summary = state.transactions.map((t, i) => `${i + 1}. ${t.description} (₦${t.amount.toFixed(2)})`).join('\n');
+    const grandTotal = state.beneficiaries.reduce((sum, b) => sum + b.transactions.reduce((s, t) => s + t.amount, 0), 0);
 
-    // Save to local history immediately
-    saveToHistory(voucherId);
+    // Build Detailed Summary for Email
+    const beneficiarySummaries = state.beneficiaries.map((b, i) => {
+        const transTable = b.transactions.map(t => `- ${t.description}: ₦${t.amount.toFixed(2)}`).join('\n');
+        return `BENEFICIARY #${i + 1}: ${b.employeeName}\nBank: ${b.bankName} | Acc: ${b.accountNumber}\nTransactions:\n${transTable}\nSubtotal: ₦${b.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}`;
+    }).join('\n\n' + '='.repeat(30) + '\n\n');
+
+    const fullSummary = `Voucher ID: ${voucherId}\nPrepared By: ${state.preparedBy}\nDepartment: ${state.department || 'N/A'}\n\n${beneficiarySummaries}\n\nGRAND TOTAL: ₦${grandTotal.toLocaleString()}`;
+
+    // Save to local history immediately (Persistent records)
+    const newEntry = {
+        voucherId,
+        date: state.date,
+        preparedBy: state.preparedBy,
+        department: state.department,
+        company: state.company,
+        beneficiaries: JSON.parse(JSON.stringify(state.beneficiaries)),
+        grandTotal,
+        timestamp: new Date().toISOString()
+    };
+    state.history.unshift(newEntry);
+    localStorage.setItem('voucher_history', JSON.stringify(state.history));
+    renderHistory();
 
     // 3. Create the Payload - Clean structure for FormSubmit
     const payload = {
         Voucher_ID: voucherId,
-        Employee_Name: state.name,
+        Prepared_By: state.preparedBy,
+        Department: state.department,
         Company: state.company,
         Date: state.date,
-        Total_Amount: `₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-        Bank_Details: `${state.bankName} | ${state.accountName} | ${state.accountNumber}`,
-        Transactions: summary,
-        _subject: `Cash Voucher Approval: ${voucherId} (${state.name})`,
+        Number_of_Beneficiaries: state.beneficiaries.length,
+        Grand_Total_Amount: `₦${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+        Details: fullSummary,
+        _subject: `Cash Voucher Approval: ${voucherId} (Prepared by: ${state.preparedBy})`,
         _template: "table",
         _captcha: "false"
     };
@@ -325,13 +347,10 @@ async function handleSendEmail() {
     try {
         showStatus('Launching Secure Transmission...', 'info');
 
-        // THE BULLETPROOF METHOD: Direct Form Submit
-        // This is the ONLY way to ensure receipt from a local file.
-        // It bypasses all browser "CORS/Security" blocks.
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `https://formsubmit.co/${state.approvedBy}`;
-        form.target = '_blank'; // Opens in new tab so you don't lose your work
+        form.target = '_blank';
         form.style.display = 'none';
 
         Object.entries(payload).forEach(([key, value]) => {
@@ -345,14 +364,16 @@ async function handleSendEmail() {
         document.body.appendChild(form);
         form.submit();
 
-        // 4. Handle UI Success
         showStatus('Sent! Check the new tab for status.', 'success');
         showActivationGuidance(state.approvedBy);
 
+        // 4. Sync to Google Sheets (Cloud Backup)
+        syncToGoogleSheets(newEntry);
+
         // Reset local form for next use
-        state.transactions = [];
-        addTransaction();
-        updateTotal();
+        state.beneficiaries = [];
+        addBeneficiary();
+        updateGrandTotal();
 
         setTimeout(() => {
             elements.sendEmailBtn.disabled = false;
@@ -368,69 +389,207 @@ async function handleSendEmail() {
     }
 }
 
-function handleSubmissionSuccess(originalBtn) {
-    // Handled directly in handleSendEmail for absolute reliability
-}
+// ===================================
+// PDF Download Handler
+// ===================================
+function handleDownloadPDF() {
+    const voucherTypeName = state.voucherType === 'petty-cash' ? 'PETTY CASH VOUCHER' : 'CASH REQUISITION';
+    const grandTotal = state.beneficiaries.reduce((sum, b) => sum + b.transactions.reduce((s, t) => s + t.amount, 0), 0);
 
-function showActivationGuidance(approverEmail) {
-    const existing = document.getElementById('premium-overlay');
-    if (existing) existing.remove();
+    const printWindow = window.open('', '', 'height=800,width=1000');
 
-    const overlay = document.createElement('div');
-    overlay.id = 'premium-overlay';
-    overlay.className = 'premium-success-overlay';
-
-    // Close when clicking outside the content
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            overlay.remove();
-        }
-    });
-
-    overlay.innerHTML = `
-        <div class="overlay-content">
-            <button class="overlay-close-x" onclick="document.getElementById('premium-overlay').remove()">✕</button>
-            
-            <div class="success-icon">✅</div>
-            <h2>Voucher Sent Successfully!</h2>
-            <p>Sent to <strong>${approverEmail}</strong></p>
-            
-            <div class="instruction-box">
-                <strong>⚠️ First Time Setup:</strong><br><br>
-                
-                <strong>If this is the FIRST voucher to this email:</strong><br>
-                1. Approver gets "Confirm Your Email" from FormSubmit<br>
-                2. They click "Confirm"<br>
-                3. Then they receive your voucher<br><br>
-                
-                <strong>Future vouchers arrive instantly!</strong>
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>${voucherTypeName}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1f2937; line-height: 1.6; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid #82c24c; }
+        .logo-section { display: flex; align-items: center; gap: 15px; }
+        .logo img { width: 60px; height: 60px; object-fit: contain; }
+        .company-info h1 { font-size: 24px; color: #342844; margin-bottom: 2px; }
+        .voucher-type { text-align: right; }
+        .voucher-type h2 { font-size: 24px; color: #342844; margin-bottom: 2px; }
+        .section { margin-bottom: 20px; }
+        .section-title { font-size: 16px; font-weight: 700; color: #374151; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 2px solid #e5e7eb; }
+        .details-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .detail-item { display: flex; flex-direction: column; }
+        .detail-label { font-size: 10px; font-weight: 600; color: #6b7280; text-transform: uppercase; }
+        .detail-value { font-size: 14px; font-weight: 500; }
+        .beneficiary-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 20px; background: #fafafa; }
+        .beneficiary-header-pdf { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        th { padding: 8px; text-align: left; font-size: 11px; background: #f3f4f6; border-bottom: 2px solid #d1d5db; }
+        td { padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+        .amount { text-align: right; }
+        .grand-total-box { margin-top: 20px; padding: 15px; background: #342844; color: white; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .signature-section { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center; }
+        .sig-line { border-top: 1px solid #333; margin-top: 40px; font-size: 11px; font-weight: 600; }
+        @media print { body { padding: 10px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo"><img src="lighthill-logo.png" alt="Logo"></div>
+            <div class="company-info">
+                <h1>LightHill</h1>
+                <p>CONGLOMERATE - Adding Values</p>
             </div>
-            
-            <button class="overlay-btn" onclick="document.getElementById('premium-overlay').remove()">Got It!</button>
         </div>
-    `;
-    document.body.appendChild(overlay);
+        <div class="voucher-type">
+            <h2>${voucherTypeName}</h2>
+            <p>Date: ${state.date}</p>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="details-grid">
+            <div class="detail-item"><span class="detail-label">Prepared By</span><span class="detail-value">${state.preparedBy || 'N/A'}</span></div>
+            <div class="detail-item"><span class="detail-label">Company</span><span class="detail-value">${state.company || 'N/A'}</span></div>
+            <div class="detail-item"><span class="detail-label">Department</span><span class="detail-value">${state.department || 'N/A'}</span></div>
+        </div>
+    </div>
+    
+    ${state.beneficiaries.map((b, i) => `
+        <div class="beneficiary-box">
+            <div class="beneficiary-header-pdf">
+                <strong>BENEFICIARY #${i + 1}: ${b.employeeName || 'N/A'}</strong>
+                <span>${b.bankName || ''} | ${b.accountNumber || ''}</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th style="width: 10%;">Qty</th><th style="width: 60%;">Description</th><th style="width: 15%;">Rate</th><th style="width: 15%;">Amount</th></tr>
+                </thead>
+                <tbody>
+                    ${b.transactions.map(t => `
+                        <tr>
+                            <td>${t.quantity || '0'}</td>
+                            <td>${t.description || 'N/A'}</td>
+                            <td class="amount">₦${parseFloat(t.rate || 0).toLocaleString()}</td>
+                            <td class="amount"><strong>₦${t.amount.toLocaleString()}</strong></td>
+                        </tr>
+                    `).join('')}
+                    <tr>
+                        <td colspan="3" style="text-align: right; border-bottom: none;"><strong>Subtotal</strong></td>
+                        <td class="amount" style="border-bottom: none;"><strong>₦${b.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    `).join('')}
+    
+    <div class="grand-total-box">
+        <span style="font-size: 16px; font-weight: 700;">GRAND TOTAL</span>
+        <span style="font-size: 24px; font-weight: 800;">₦${grandTotal.toLocaleString()}</span>
+    </div>
+    
+    <div class="signature-section">
+        <div class="sig-box"><div class="sig-line">Prepared By<br>(${state.preparedBy})</div></div>
+        <div class="sig-box"><div class="sig-line">Reviewed By</div></div>
+        <div class="sig-box"><div class="sig-line">Approved By<br>(${state.approvedBy})</div></div>
+    </div>
+</body>
+</html>`;
 
-    // Close with ESC key
-    const escHandler = (e) => {
-        if (e.key === 'Escape') {
-            overlay.remove();
-            document.removeEventListener('keydown', escHandler);
-        }
-    };
-    document.addEventListener('keydown', escHandler);
-
-    // Auto-close after 10 seconds
-    setTimeout(() => {
-        if (overlay.parentNode) {
-            overlay.remove();
-        }
-    }, 10000);
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => printWindow.print();
 }
 
+// ===================================
+// Excel Handler (Master Excel)
+// ===================================
+function handleDownloadExcel() {
+    // If we have a Master Sheet ID, prefer downloading the shared source of truth
+    if (MASTER_SHEET_ID) {
+        showStatus('Downloading Shared Master Records...', 'info');
+        const downloadUrl = `https://docs.google.com/spreadsheets/d/${MASTER_SHEET_ID}/export?format=xlsx`;
+        window.open(downloadUrl, '_blank');
+        return;
+    }
 
+    try {
+        if (typeof XLSX === 'undefined') {
+            showStatus('Export tool not loaded', 'error');
+            return;
+        }
 
+        const wb = XLSX.utils.book_new();
 
+        // 1. MASTER RECORDS (All history)
+        // Flatten history for analysis
+        const masterData = [];
+        state.history.forEach(v => {
+            v.beneficiaries.forEach(b => {
+                b.transactions.forEach(t => {
+                    masterData.push({
+                        'Voucher ID': v.voucherId,
+                        'Date': v.date,
+                        'Prepared By': v.preparedBy,
+                        'Department': v.department,
+                        'Company': v.company,
+                        'Beneficiary': b.employeeName,
+                        'Bank': b.bankName,
+                        'Account Number': b.accountNumber,
+                        'Account Name': b.accountName,
+                        'Description': t.description,
+                        'Qty': t.quantity,
+                        'Rate': t.rate,
+                        'Amount': t.amount,
+                        'Approver Email': v.approvedBy || ''
+                    });
+                });
+            });
+        });
+
+        // If no history, export current
+        if (masterData.length === 0) {
+            state.beneficiaries.forEach(b => {
+                b.transactions.forEach(t => {
+                    masterData.push({
+                        'Voucher ID': 'PENDING',
+                        'Date': state.date,
+                        'Prepared By': state.preparedBy,
+                        'Department': state.department,
+                        'Company': state.company,
+                        'Beneficiary': b.employeeName,
+                        'Bank': b.bankName,
+                        'Account Number': b.accountNumber,
+                        'Account Name': b.accountName,
+                        'Description': t.description,
+                        'Qty': t.quantity,
+                        'Rate': t.rate,
+                        'Amount': t.amount
+                    });
+                });
+            });
+        }
+
+        const wsMaster = XLSX.utils.json_to_sheet(masterData);
+        XLSX.utils.book_append_sheet(wb, wsMaster, "Master Records");
+
+        // 2. Export File
+        const fileName = `LightHill_Master_Excel_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        showStatus('Master Excel Downloaded!', 'success');
+
+    } catch (err) {
+        console.error('Excel Error:', err);
+        showStatus('Error generating Excel', 'error');
+    }
+}
+
+// ===================================
+// UI Utilities
+// ===================================
+function handleTypeChange(clickedBtn) {
+    elements.typeButtons.forEach(btn => btn.classList.remove('active'));
+    clickedBtn.classList.add('active');
+    state.voucherType = clickedBtn.dataset.type;
+}
 
 function showStatus(message, type = 'info') {
     let container = document.getElementById('status-container');
@@ -452,480 +611,111 @@ function showStatus(message, type = 'info') {
     }, 4000);
 }
 
+function showActivationGuidance(approverEmail) {
+    const existing = document.getElementById('premium-overlay');
+    if (existing) existing.remove();
 
-// ===================================
-// PDF Download Handler
-// ===================================
-function handleDownloadPDF() {
-    const voucherTypeName = state.voucherType === 'petty-cash' ? 'PETTY CASH VOUCHER' : 'CASH REQUISITION';
-    const total = state.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-
-    const printWindow = window.open('', '', 'height=800,width=1000');
-
-    const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>${voucherTypeName}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 40px;
-            color: #1f2937;
-            line-height: 1.6;
-        }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 3px solid #82c24c;
-        }
-        
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: white;
-            border-radius: 8px;
-            padding: 5px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-        
-        .company-info h1 {
-            font-size: 32px;
-            color: #342844;
-            margin-bottom: 5px;
-            font-weight: 800;
-        }
-        
-        .company-info p {
-            color: #82c24c;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        .voucher-type {
-            text-align: right;
-        }
-        
-        .voucher-type h2 {
-            font-size: 32px;
-            color: #342844;
-            font-weight: 800;
-            margin-bottom: 5px;
-        }
-        
-        .voucher-type .date {
-            color: #6b7280;
-            font-size: 14px;
-        }
-        
-        .section {
-            margin-bottom: 30px;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #374151;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        
-        .details-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .detail-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .detail-value {
-            font-size: 16px;
-            color: #1f2937;
-            font-weight: 500;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-        
-        thead {
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-        }
-        
-        th {
-            padding: 12px;
-            text-align: left;
-            font-size: 12px;
-            font-weight: 700;
-            color: #374151;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 2px solid #d1d5db;
-        }
-        
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 14px;
-        }
-        
-        tbody tr:hover {
-            background: #f9fafb;
-        }
-        
-        .total-row {
-            background: linear-gradient(135deg, #e8f5e0 0%, #d4edca 100%);
-            font-weight: 700;
-            font-size: 16px;
-        }
-        
-        .total-row td {
-            padding: 15px 12px;
-            border-bottom: none;
-        }
-        
-        .amount {
-            text-align: right;
-            font-weight: 600;
-        }
-        
-        .signature-section {
-            margin-top: 60px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 40px;
-        }
-        
-        .signature-box {
-            text-align: center;
-        }
-        
-        .signature-line {
-            border-top: 2px solid #1f2937;
-            margin-top: 50px;
-            padding-top: 10px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-        }
-        
-        .footer {
-            margin-top: 60px;
-            padding-top: 20px;
-            border-top: 2px solid #e5e7eb;
-            text-align: center;
-            color: #9ca3af;
-            font-size: 12px;
-        }
-        
-        @media print {
-            body {
-                padding: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="logo-section">
-            <div class="logo">
-                <img src="lighthill-logo.png" alt="LightHill">
+    const overlay = document.createElement('div');
+    overlay.id = 'premium-overlay';
+    overlay.className = 'premium-success-overlay';
+    overlay.innerHTML = `
+        <div class="overlay-content">
+            <button class="overlay-close-x" onclick="this.closest('#premium-overlay').remove()">✕</button>
+            <div class="success-icon">✅</div>
+            <h2>Voucher Sent Successfully!</h2>
+            <p>Sent to <strong>${approverEmail}</strong></p>
+            <div class="instruction-box">
+                <strong>⚠️ Note:</strong> The first time you send a voucher to a new email, the approver must confirm via an email from FormSubmit.
             </div>
-            <div class="company-info">
-                <h1>LightHill</h1>
-                <p>CONGLOMERATE - Adding Values</p>
-            </div>
+            <button class="overlay-btn" onclick="this.closest('#premium-overlay').remove()">Got It!</button>
         </div>
-        <div class="voucher-type">
-            <h2>${voucherTypeName}</h2>
-            <p class="date">Date: ${state.date}</p>
-        </div>
-    </div>
-    
-    <div class="section">
-        <h3 class="section-title">Employee Information</h3>
-        <div class="details-grid">
-            <div class="detail-item">
-                <span class="detail-label">Employee Name</span>
-                <span class="detail-value">${state.name || 'N/A'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Company</span>
-                <span class="detail-value">${state.company || 'N/A'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Department</span>
-                <span class="detail-value">${state.department || 'N/A'}</span>
-            </div>
-        </div>
-    </div>
-    
-    <div class="section">
-        <h3 class="section-title">Transaction Details</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 10%;">Qty</th>
-                    <th style="width: 50%;">Description</th>
-                    <th style="width: 20%;">Rate (₦)</th>
-                    <th style="width: 20%;">Amount (₦)</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${state.transactions.map(t => `
-                    <tr>
-                        <td>${t.quantity || '0'}</td>
-                        <td>${t.description || 'N/A'}</td>
-                        <td class="amount">₦${parseFloat(t.rate || 0).toFixed(2)}</td>
-                        <td class="amount">₦${t.amount.toFixed(2)}</td>
-                    </tr>
-                `).join('')}
-                <tr class="total-row">
-                    <td colspan="3" style="text-align: right;">TOTAL AMOUNT</td>
-                    <td class="amount">₦${total.toFixed(2)}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    
-    <div class="section">
-        <h3 class="section-title">Bank Details</h3>
-        <div class="details-grid">
-            <div class="detail-item">
-                <span class="detail-label">Account Name</span>
-                <span class="detail-value">${state.accountName || 'N/A'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Account Number</span>
-                <span class="detail-value">${state.accountNumber || 'N/A'}</span>
-            </div>
-            <div class="detail-item">
-                <span class="detail-label">Bank Name</span>
-                <span class="detail-value">${state.bankName || 'N/A'}</span>
-            </div>
-        </div>
-    </div>
-    
-    <div class="signature-section">
-        <div class="signature-box">
-            <div class="signature-line">Prepared By</div>
-        </div>
-        <div class="signature-box">
-            <div class="signature-line">Reviewed By</div>
-        </div>
-        <div class="signature-box">
-            <div class="signature-line">Approved By<br>${state.approvedBy || ''}</div>
-        </div>
-    </div>
-    
-    <div class="footer">
-        <p>This is a computer-generated document. Generated on ${new Date().toLocaleString()}</p>
-    </div>
-</body>
-</html>
     `;
-
-    printWindow.document.write(html);
-    printWindow.document.close();
-
-    // Wait for content to load, then print
-    printWindow.onload = function () {
-        printWindow.print();
-    };
+    document.body.appendChild(overlay);
 }
 
-// ===================================
-// Success Message
-// ===================================
-function showSuccessMessage() {
-    elements.successMessage.classList.add('show');
-    setTimeout(() => {
-        elements.successMessage.classList.remove('show');
-    }, 3000);
-}
+async function syncToGoogleSheets(voucherEntry) {
+    if (!GOOGLE_SCRIPT_URL) {
+        console.warn('Google Sheets sync not configured. See GOOGLE_SHEETS_SETUP.md');
+        return;
+    }
 
-// ===================================
-// Auto-Export to Excel
-// ===================================
-function handleDownloadExcel() {
-    try {
-        if (typeof XLSX === 'undefined') {
-            showStatus('Export tool not loaded', 'error');
-            return;
-        }
-
-        const wb = XLSX.utils.book_new();
-
-        // 1. Current Voucher Data
-        const voucherTypeName = state.voucherType === 'petty-cash' ? 'PETTY CASH VOUCHER' : 'CASH REQUISITION';
-        const total = state.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-        const currentVoucherData = [
-            ['LIGHTHILL CONGLOMERATE'],
-            [voucherTypeName],
-            [`Date: ${state.date}`],
-            ['Employee:', state.name],
-            ['Total Amount:', total.toFixed(2)],
-            [],
-            ['Qty', 'Description', 'Rate', 'Amount']
-        ];
-        state.transactions.forEach(t => {
-            currentVoucherData.push([t.quantity, t.description, t.rate, t.amount]);
-        });
-        const wsCurrent = XLSX.utils.aoa_to_sheet(currentVoucherData);
-        XLSX.utils.book_append_sheet(wb, wsCurrent, 'Current Voucher');
-
-        // 2. Master History Data
-        if (state.history.length > 0) {
-            const historyData = [
-                ['VOUCHER MASTER HISTORY'],
-                ['Timestamp', 'Date', 'Type', 'Employee', 'Company', 'Total (₦)']
-            ];
-            state.history.forEach(h => {
-                historyData.push([h.timestamp, h.date, h.type, h.employee, h.company, h.total]);
+    // Flatten transactions into rows for the sheet
+    const rows = [];
+    voucherEntry.beneficiaries.forEach(b => {
+        b.transactions.forEach(t => {
+            rows.push({
+                'Voucher ID': voucherEntry.voucherId,
+                'Date': voucherEntry.date,
+                'Prepared By': voucherEntry.preparedBy,
+                'Department': voucherEntry.department,
+                'Company': voucherEntry.company,
+                'Beneficiary': b.employeeName,
+                'Bank': b.bankName,
+                'Account Number': b.accountNumber,
+                'Account Name': b.accountName,
+                'Description': t.description,
+                'Qty': t.quantity,
+                'Rate': t.rate,
+                'Amount': t.amount,
+                'Approver Email': state.approvedBy
             });
-            const wsHistory = XLSX.utils.aoa_to_sheet(historyData);
-            XLSX.utils.book_append_sheet(wb, wsHistory, 'Master History');
-        }
+        });
+    });
 
-        XLSX.writeFile(wb, `LightHill_Voucher_Master_${new Date().toISOString().split('T')[0]}.xlsx`);
-        showStatus('Master Excel Downloaded!', 'success');
-    } catch (error) {
-        console.error('Export error:', error);
+    try {
+        const response = await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Apps Script requires no-cors for simple redirects
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rows)
+        });
+        console.log('Syncing to Google Sheets...');
+        showStatus('Cloud Backup Synced!', 'success');
+    } catch (err) {
+        console.error('Sync Error:', err);
+        showStatus('Cloud Sync Failed (Offline?)', 'warning');
     }
 }
 
-// ===================================
-// History Management
-// ===================================
 function saveToHistory(voucherId) {
-    const total = state.transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    const voucherRecord = {
-        id: voucherId,
-        uid: Date.now(),
-        date: state.date,
-        type: state.voucherType === 'petty-cash' ? 'Petty Cash' : 'Cash Requisition',
-        employee: state.name,
-        company: state.company,
-        total: total,
-        timestamp: new Date().toLocaleString(),
-        transactionData: JSON.stringify(state.transactions)
-    };
-
-    state.history.push(voucherRecord);
-    localStorage.setItem('voucher_history', JSON.stringify(state.history));
-    renderHistory();
+    // Handled inside handleSendEmail now
 }
 
 function renderHistory() {
     if (!elements.historyList) return;
 
-    elements.historyList.innerHTML = '';
-
     if (state.history.length === 0) {
-        elements.historyList.innerHTML = '<div class="empty-history">No history yet. Send a voucher to see it here!</div>';
+        elements.historyList.innerHTML = '<div class="empty-history">No history yet.</div>';
         return;
     }
 
-    // Show last 6 items, newest first
-    const recentHistory = [...state.history].reverse().slice(0, 10);
-
-    recentHistory.forEach(voucher => {
-        const item = document.createElement('div');
-        item.className = 'history-item';
-        item.innerHTML = `
+    elements.historyList.innerHTML = state.history.map(h => `
+        <div class="history-item">
             <div class="history-item-header">
-                <span>${voucher.type}</span>
-                <span class="history-item-total">₦${voucher.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span>${h.voucherId}</span>
+                <span>₦${h.grandTotal.toLocaleString()}</span>
             </div>
-            <div class="history-item-date">${voucher.date} (${voucher.employee || 'No Name'})</div>
-            <div style="font-size: 10px; color: #9ca3af; margin-top: 5px;">Click to load details</div>
-        `;
-
-        item.addEventListener('click', () => loadVoucherFromHistory(voucher.uid || voucher.id));
-        elements.historyList.appendChild(item);
-    });
-}
-
-function loadVoucherFromHistory(id) {
-    const voucher = state.history.find(v => (v.uid === id || v.id === id));
-    if (!voucher) return;
-
-    if (confirm('Load this voucher details into the form? Current unsaved data will be replaced.')) {
-        // Map history back to state
-        state.date = voucher.date;
-        state.name = voucher.employee || '';
-        state.company = voucher.company || '';
-        state.voucherType = voucher.type === 'Petty Cash' ? 'petty-cash' : 'cash-req';
-
-        // Populate inputs
-        elements.dateInput.value = state.date;
-        elements.nameInput.value = state.name;
-        elements.companyInput.value = state.company;
-
-        // Handle type buttons
-        elements.typeButtons.forEach(btn => {
-            if (btn.dataset.type === state.voucherType) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
-
-        // Load transactions if they were saved (optional, requires saving them in saveToHistory)
-        if (voucher.transactionData) {
-            state.transactions = JSON.parse(voucher.transactionData);
-            renderTransactions();
-        }
-
-        showStatus('Voucher details loaded!', 'success');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+            <div class="history-item-date">${new Date(h.timestamp).toLocaleString()}</div>
+            <div style="font-size: 11px; margin-top: 5px;">
+                Prep: ${h.preparedBy} | Beneficiaries: ${h.beneficiaries.length}
+            </div>
+        </div>
+    `).join('');
 }
 
 function clearHistory() {
-    if (confirm('Are you sure you want to clear your voucher history? This cannot be undone.')) {
+    if (confirm('Are you sure you want to clear your local history? This won\'t affect shared records if a database is used.')) {
         state.history = [];
         localStorage.removeItem('voucher_history');
         renderHistory();
-        showStatus('History cleared.', 'info');
+        showStatus('History cleared', 'info');
     }
 }
+
+// Global scope helpers for onclick handlers
+window.removeBeneficiary = removeBeneficiary;
+window.addTransaction = addTransaction;
+window.deleteTransaction = deleteTransaction;
 
 // ===================================
 // Initialize on DOM Load

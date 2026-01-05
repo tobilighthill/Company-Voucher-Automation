@@ -40,20 +40,16 @@
                 </div>
             </div>
 
-            <!-- Basic Information -->
+            <!-- Common Information -->
             <div class="section">
                 <h2 class="section-title">
                     <span class="title-icon">📝</span>
-                    Basic Information
+                    General Information
                 </h2>
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="date">Date</label>
                         <input type="date" id="date" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="name">Employee Name</label>
-                        <input type="text" id="name" class="form-input" placeholder="Enter full name">
                     </div>
                     <div class="form-group">
                         <label for="preparedBy">Prepared By</label>
@@ -65,72 +61,42 @@
                     </div>
                     <div class="form-group">
                         <label for="department">Department</label>
-                        <input type="text" id="department" class="form-input" placeholder="Department">
+                        <select id="department" class="form-input">
+                            <option value="">Select Department</option>
+                            <option value="Admin">Admin</option>
+                            <option value="HR">HR</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Other">Other</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Transactions Section -->
-            <div class="section">
-                <div class="section-header">
-                    <h2 class="section-title">
-                        <span class="title-icon">💳</span>
-                        Transactions
-                    </h2>
-                    <button class="btn-add" id="addTransactionBtn">
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                        </svg>
-                        Add Item
-                    </button>
-                </div>
-
-                <div class="table-container">
-                    <table class="transactions-table" id="transactionsTable">
-                        <thead>
-                            <tr>
-                                <th>Qty</th>
-                                <th>Description</th>
-                                <th>Rate (₦)</th>
-                                <th>Amount (₦)</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactionsBody">
-                            <!-- Rows will be added dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="total-section">
-                    <div class="total-label">Total Amount</div>
-                    <div class="total-amount" id="totalAmount">₦0.00</div>
-                </div>
+            <!-- Beneficiaries Container -->
+            <div id="beneficiariesContainer">
+                <!-- Beneficiary blocks will be added here dynamically -->
             </div>
 
-            <!-- Bank Details -->
-            <div class="section">
-                <h2 class="section-title">
-                    <span class="title-icon">🏦</span>
-                    Bank Details
-                </h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="accountName">Account Name</label>
-                        <input type="text" id="accountName" class="form-input" placeholder="Account holder name">
-                    </div>
-                    <div class="form-group">
-                        <label for="accountNumber">Account Number</label>
-                        <input type="text" id="accountNumber" class="form-input" placeholder="0123456789">
-                    </div>
-                    <div class="form-group">
-                        <label for="bankName">Bank Name</label>
-                        <input type="text" id="bankName" class="form-input" placeholder="Bank name">
-                    </div>
-                    <div class="form-group">
-                        <label for="approvedBy">Approved By (Email)</label>
-                        <input type="email" id="approvedBy" class="form-input" placeholder="approver@company.com">
-                    </div>
+            <div class="beneficiary-actions">
+                <button class="btn btn-add-beneficiary" id="addBeneficiaryBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Add Beneficiary / Payee
+                </button>
+            </div>
+
+            <div class="final-total-section">
+                <div class="total-label">Grand Total Amount</div>
+                <div class="total-amount" id="grandTotalAmount">₦0.00</div>
+            </div>
+
+            <!-- Approval Email (Hidden from PDF/Excel but needed for submission) -->
+            <div class="section" style="margin-top: 2rem; border-top: 1px dashed var(--gray-300); padding-top: 2rem;">
+                <div class="form-group" style="max-width: 400px; margin: 0 auto;">
+                    <label for="approvedBy">Send for Approval to (Email)</label>
+                    <input type="email" id="approvedBy" class="form-input" placeholder="approver@company.com">
                 </div>
             </div>
 
