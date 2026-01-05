@@ -692,23 +692,32 @@ function saveToHistory(voucherId) {
 function renderHistory() {
     if (!elements.historyList) return;
 
-    if (state.history.length === 0) {
+    if (!Array.isArray(state.history) || state.history.length === 0) {
         elements.historyList.innerHTML = '<div class="empty-history">No history yet.</div>';
         return;
     }
 
-    elements.historyList.innerHTML = state.history.map(h => `
-        <div class="history-item">
-            <div class="history-item-header">
-                <span>${h.voucherId}</span>
-                <span>₦${h.grandTotal.toLocaleString()}</span>
+    elements.historyList.innerHTML = state.history.map(h => {
+        // Defensive checks for old/incompatible history records
+        const vId = h.voucherId || h.id || 'N/A';
+        const total = h.grandTotal || h.total || 0;
+        const date = h.timestamp ? new Date(h.timestamp).toLocaleString() : (h.date || 'N/A');
+        const prep = h.preparedBy || h.name || 'Unknown';
+        const bCount = h.beneficiaries ? h.beneficiaries.length : 1;
+
+        return `
+            <div class="history-item">
+                <div class="history-item-header">
+                    <span>${vId}</span>
+                    <span>₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="history-item-date">${date}</div>
+                <div style="font-size: 11px; margin-top: 5px; opacity: 0.8;">
+                    Prep: ${prep} | Payees: ${bCount}
+                </div>
             </div>
-            <div class="history-item-date">${new Date(h.timestamp).toLocaleString()}</div>
-            <div style="font-size: 11px; margin-top: 5px;">
-                Prep: ${h.preparedBy} | Beneficiaries: ${h.beneficiaries.length}
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function clearHistory() {
