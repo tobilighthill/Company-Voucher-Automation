@@ -14,8 +14,10 @@ const state = {
     preparedBy: '',
     company: '',
     department: '',
-    beneficiaries: [], // Array of { id, employeeName, accountName, accountNumber, bankName, transactions: [] }
+    beneficiaries: [],
     approvedBy: '',
+    attachment: null, // Stores { name, data, type }
+    isViewingHistory: false,
     history: JSON.parse(localStorage.getItem('voucher_history') || '[]')
 };
 
@@ -87,6 +89,16 @@ function setupEventListeners() {
     if (elements.sendEmailBtn) elements.sendEmailBtn.addEventListener('click', handleSendEmail);
     if (elements.downloadPdfBtn) elements.downloadPdfBtn.addEventListener('click', handleDownloadPDF);
     if (elements.downloadExcelBtn) elements.downloadExcelBtn.addEventListener('click', handleDownloadExcel);
+
+    // File handling
+    if (elements.fileInput) {
+        elements.fileInput.addEventListener('change', handleFileSelect);
+    }
+
+    // Search handling
+    if (elements.searchBtn) {
+        elements.searchBtn.addEventListener('click', performSearch);
+    }
 
     // History listeners
     if (elements.clearHistoryBtn) {
@@ -367,6 +379,7 @@ async function handleSendEmail() {
         form.action = `https://formsubmit.co/${state.approvedBy.trim()}`;
         form.target = '_blank';
         form.style.display = 'none';
+        form.enctype = 'multipart/form-data'; // Crucial for file uploads
 
         Object.entries(payload).forEach(([key, value]) => {
             const input = document.createElement('input');
@@ -375,6 +388,13 @@ async function handleSendEmail() {
             input.value = value;
             form.appendChild(input);
         });
+
+        // Add the file attachment if present
+        if (state.attachment && elements.fileInput.files.length > 0) {
+            const fileClone = elements.fileInput.cloneNode(true);
+            fileClone.name = 'attachment';
+            form.appendChild(fileClone);
+        }
 
         document.body.appendChild(form);
         form.submit();

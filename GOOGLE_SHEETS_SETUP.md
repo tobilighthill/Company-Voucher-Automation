@@ -31,6 +31,27 @@ function doPost(e) {
 function doGet(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var values = sheet.getDataRange().getValues();
+  
+  if (e.parameter.query) {
+    var query = e.parameter.query.toLowerCase();
+    var filter = e.parameter.filter || "voucher_id";
+    var colIndex = -1;
+    
+    var headers = ["Voucher ID", "Date", "Prepared By", "Department", "Company", "Beneficiary", "Bank", "Account Number", "Account Name", "Description", "Qty", "Rate", "Amount", "Approver Email"];
+    
+    if (filter === "voucher_id") colIndex = 0;
+    else if (filter === "beneficiary") colIndex = 5;
+    else if (filter === "prepared_by") colIndex = 2;
+    
+    if (colIndex !== -1) {
+      var filteredRows = values.filter(function(row, index) {
+        if (index === 0) return true; // Keep headers
+        return row[colIndex] && row[colIndex].toString().toLowerCase().includes(query);
+      });
+      return ContentService.createTextOutput(JSON.stringify(filteredRows)).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+  
   return ContentService.createTextOutput(JSON.stringify(values)).setMimeType(ContentService.MimeType.JSON);
 }
 ```

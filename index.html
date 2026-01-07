@@ -128,6 +128,32 @@
     <!-- Status Toast Container -->
     <div id="status-container"></div>
 
+    <!-- Shared Database Search UI -->
+    <div class="history-section search-section-card" id="searchSection">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">🔎</span>
+                Search Database
+            </h2>
+        </div>
+
+        <div class="search-controls">
+            <select id="searchFilter" class="form-input search-filter">
+                <option value="voucher_id">Voucher ID</option>
+                <option value="beneficiary">Beneficiary Name</option>
+                <option value="prepared_by">Prepared By</option>
+            </select>
+            <input type="text" id="searchQuery" class="form-input search-input" placeholder="Enter ID or Name...">
+            <button id="searchBtn" class="btn btn-primary search-btn">Search Database</button>
+        </div>
+
+        <div class="search-results-list" id="searchResults">
+            <!-- Results appear here -->
+            <div class="empty-history">Search the shared Google Sheets database above to retrieve any past transaction.
+            </div>
+        </div>
+    </div>
+
     <!-- History Modal / Sidebar -->
     <div class="history-section" id="historySection">
         <div class="section-header">
