@@ -308,6 +308,13 @@ function updateGrandTotal() {
 // Email Handler (Formspree Integration)
 // ===================================
 async function handleSendEmail() {
+    // 0. Manual Scrape (Safety for autofill)
+    if (elements.preparedByInput) state.preparedBy = elements.preparedByInput.value;
+    if (elements.companyInput) state.company = elements.companyInput.value;
+    if (elements.approvedByInput) state.approvedBy = elements.approvedByInput.value;
+    if (elements.dateInput) state.date = elements.dateInput.value;
+    if (elements.departmentInput) state.department = elements.departmentInput.value;
+
     // 1. Validation
     if (!state.preparedBy || !state.company || !state.approvedBy) {
         showStatus('Please fill Prepared By, Company, and Approver Email.', 'error');
@@ -380,17 +387,24 @@ async function handleSendEmail() {
     };
 
     try {
+        console.log('Preparing submission for:', state.approvedBy);
         showStatus('Sending to ' + state.approvedBy + '...', 'info');
 
-        // Trigger Google Sheets Sync in background immediately
+        // Trigger Google Sheets Sync in background
         syncToGoogleSheets(newEntry).catch(e => console.error('Sync error:', e));
 
+        // Create a hidden form for FormSubmit.co
         const form = document.createElement('form');
         form.method = 'POST';
         form.action = `https://formsubmit.co/${state.approvedBy.trim()}`;
         form.target = '_blank';
         form.style.display = 'none';
-        form.enctype = 'multipart/form-data'; // Crucial for file uploads
+
+        // Only use multipart if there's actually a file
+        const hasFile = elements.fileInput && elements.fileInput.files.length > 0;
+        if (hasFile) {
+            form.enctype = 'multipart/form-data';
+        }
 
         Object.entries(payload).forEach(([key, value]) => {
             const input = document.createElement('input');
@@ -400,25 +414,41 @@ async function handleSendEmail() {
             form.appendChild(input);
         });
 
-        // Add the file attachment if present
-        if (state.attachment && elements.fileInput.files.length > 0) {
-            const fileClone = elements.fileInput.cloneNode(true);
-            fileClone.name = 'attachment';
-            form.appendChild(fileClone);
-        }
+        // Add file attachment if present
+        if (hasFile) {
+            const fileInput = elements.fileInput;
+            const fileClone = fileInput.cloneNode(true); // Technically file clones might clear in some browsers
+            // Better approach: move the REAL input into the form temporarily
+            const originalParent = fileInput.parentNode;
+            const originalNextSibling = fileInput.nextSibling;
 
-        document.body.appendChild(form);
-        form.submit();
+            fileInput.name = 'attachment';
+            form.appendChild(fileInput);
+
+            document.body.appendChild(form);
+            form.submit();
+
+            // Put it back
+            originalParent.insertBefore(fileInput, originalNextSibling);
+            fileInput.name = ''; // Clear name to avoid conflicts
+        } else {
+            document.body.appendChild(form);
+            form.submit();
+        }
 
         showStatus('SUCCESS: Check the new tab to finish!', 'success');
         showActivationGuidance(state.approvedBy);
 
-        // Reset local form for next use
-        state.beneficiaries = [];
-        addBeneficiary();
-        updateGrandTotal();
-
+        // Reset local form AFTER a short delay to ensure submission captured
         setTimeout(() => {
+            state.beneficiaries = [];
+            state.attachment = null;
+            if (elements.fileInput) elements.fileInput.value = '';
+            if (elements.fileNameDisplay) elements.fileNameDisplay.textContent = 'No file chosen (Max 5MB)';
+
+            addBeneficiary();
+            updateGrandTotal();
+
             elements.sendEmailBtn.disabled = false;
             elements.sendEmailBtn.innerHTML = originalBtn;
             if (form.parentNode) document.body.removeChild(form);
