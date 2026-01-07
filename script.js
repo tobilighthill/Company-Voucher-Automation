@@ -45,7 +45,17 @@ function init() {
         downloadExcelBtn: document.getElementById('downloadExcelBtn'),
         typeButtons: document.querySelectorAll('.type-btn'),
         historyList: document.getElementById('historyList'),
-        clearHistoryBtn: document.getElementById('clearHistoryBtn')
+        clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+        fileInput: document.getElementById('fileInput'),
+        fileNameDisplay: document.getElementById('fileNameDisplay'),
+        searchQuery: document.getElementById('searchQuery'),
+        searchBtn: document.getElementById('searchBtn'),
+        searchResults: document.getElementById('searchResults'),
+        searchFilter: document.getElementById('searchFilter'),
+        startDate: document.getElementById('startDate'),
+        endDate: document.getElementById('endDate'),
+        searchQueryContainer: document.getElementById('searchQueryContainer'),
+        dateRangeContainer: document.getElementById('dateRangeContainer')
     };
 
     // Set default date
@@ -758,7 +768,167 @@ function clearHistory() {
     }
 }
 
+// ===================================
+// File & Search Handlers
+// ===================================
+function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+        showStatus('File too large (Max 5MB)', 'error');
+        e.target.value = '';
+        return;
+    }
+
+    state.attachment = { name: file.name, type: file.type };
+    elements.fileNameDisplay.textContent = `📎 Attached: ${file.name}`;
+    showStatus('Document attached successfully', 'success');
+}
+
+function toggleSearchInputs() {
+    const filter = elements.searchFilter.value;
+    if (filter === 'date_range') {
+        elements.searchQueryContainer.style.display = 'none';
+        elements.dateRangeContainer.style.display = 'flex';
+    } else {
+        elements.searchQueryContainer.style.display = 'block';
+        elements.dateRangeContainer.style.display = 'none';
+        if (filter === 'voucher_id') elements.searchQuery.placeholder = "Enter Voucher ID...";
+        else if (filter === 'beneficiary') elements.searchQuery.placeholder = "Enter Payee Name...";
+        else elements.searchQuery.placeholder = "Enter Prepared By Name...";
+    }
+}
+
+async function performSearch() {
+    if (!GOOGLE_SCRIPT_URL) {
+        showStatus('Cloud Search not configured', 'error');
+        return;
+    }
+
+    const filter = elements.searchFilter.value;
+    let queryParams = `?filter=${filter}`;
+
+    if (filter === 'date_range') {
+        const start = elements.startDate.value;
+        const end = elements.endDate.value;
+        if (!start || !end) {
+            showStatus('Please select both start and end dates', 'warning');
+            return;
+        }
+        queryParams += `&start=${start}&end=${end}`;
+    } else {
+        const query = elements.searchQuery.value.trim();
+        if (!query) {
+            showStatus('Please enter a search term', 'warning');
+            return;
+        }
+        queryParams += `&query=${encodeURIComponent(query)}`;
+    }
+
+    elements.searchBtn.disabled = true;
+    elements.searchBtn.innerHTML = '<span class="btn-spinner"></span> Searching...';
+    elements.searchResults.innerHTML = '<div class="searching-msg">Connecting to database...</div>';
+
+    try {
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}${queryParams}`);
+        const data = await response.json();
+        displaySearchResults(data);
+    } catch (err) {
+        console.error('Search error:', err);
+        showStatus('Error querying database', 'error');
+        elements.searchResults.innerHTML = '<div class="empty-history">Search failed. Check your connection.</div>';
+    } finally {
+        elements.searchBtn.disabled = false;
+        elements.searchBtn.innerHTML = 'Search Database';
+    }
+}
+
+function displaySearchResults(results) {
+    if (!results || results.length <= 1) {
+        elements.searchResults.innerHTML = '<div class="empty-history">No records found matching your search.</div>';
+        return;
+    }
+
+    const rows = results.slice(1);
+    const vouchers = {};
+    rows.forEach(row => {
+        const vid = row[0];
+        if (!vouchers[vid]) vouchers[vid] = [];
+        vouchers[vid].push(row);
+    });
+
+    elements.searchResults.innerHTML = Object.keys(vouchers).map(vid => {
+        const vData = vouchers[vid];
+        const date = vData[0][1];
+        const prepBy = vData[0][2];
+        const total = vData.reduce((sum, r) => sum + parseFloat(r[12] || 0), 0);
+
+        return `
+            <div class="search-item">
+                <div class="search-item-header">
+                    <strong>${vid}</strong>
+                    <span style="color: var(--primary-color);">₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="search-item-meta">Date: ${date} | Prepared By: ${prepBy} | Payees: ${[...new Set(vData.map(r => r[5]))].length}</div>
+                <button class="btn-view-doc" onclick="viewVoucherFromDatabase('${vid}')">View & Repopulate Form</button>
+            </div>
+        `;
+    }).join('');
+}
+
+window.viewVoucherFromDatabase = async function (vid) {
+    showStatus('Retrieving data...', 'info');
+
+    try {
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?filter=voucher_id&query=${encodeURIComponent(vid)}`);
+        const data = await response.json();
+
+        if (data.length <= 1) return;
+        const rows = data.slice(1);
+        const base = rows[0];
+
+        // Repopulate state
+        state.date = base[1];
+        state.preparedBy = base[2];
+        state.department = base[3];
+        state.company = base[4];
+        state.approvedBy = base[13];
+        state.beneficiaries = [];
+
+        const groups = {};
+        rows.forEach(r => {
+            const bName = r[5];
+            if (!groups[bName]) {
+                groups[bName] = {
+                    employeeName: bName, bankName: r[6], accountNumber: r[7], accountName: r[8],
+                    transactions: []
+                };
+            }
+            groups[bName].transactions.push({
+                quantity: r[10], description: r[9], rate: r[11], amount: parseFloat(r[12])
+            });
+        });
+
+        state.beneficiaries = Object.values(groups).map((b, i) => ({ id: Date.now() + i, ...b }));
+
+        // Update UI
+        elements.preparedByInput.value = state.preparedBy;
+        elements.companyInput.value = state.company;
+        elements.departmentInput.value = state.department;
+        elements.approvedByInput.value = state.approvedBy;
+        elements.dateInput.value = state.date;
+
+        renderBeneficiaries();
+        showStatus('Voucher retrieved from Cloud', 'success');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+        showStatus('Failed to retrieve voucher', 'error');
+    }
+}
+
 // Global scope helpers for onclick handlers
+window.toggleSearchInputs = toggleSearchInputs;
 window.removeBeneficiary = removeBeneficiary;
 window.addTransaction = addTransaction;
 window.deleteTransaction = deleteTransaction;

@@ -152,12 +152,23 @@
         </div>
 
         <div class="search-controls">
-            <select id="searchFilter" class="form-input search-filter">
+            <select id="searchFilter" class="form-input search-filter" onchange="toggleSearchInputs()">
                 <option value="voucher_id">Voucher ID</option>
                 <option value="beneficiary">Beneficiary Name</option>
                 <option value="prepared_by">Prepared By</option>
+                <option value="date_range">Date Range</option>
             </select>
-            <input type="text" id="searchQuery" class="form-input search-input" placeholder="Enter ID or Name...">
+
+            <div id="searchQueryContainer" style="flex: 1;">
+                <input type="text" id="searchQuery" class="form-input search-input" placeholder="Enter ID or Name...">
+            </div>
+
+            <div id="dateRangeContainer" style="display: none; align-items: center; gap: 10px; flex: 1;">
+                <input type="date" id="startDate" class="form-input">
+                <span style="color: var(--gray-500);">to</span>
+                <input type="date" id="endDate" class="form-input">
+            </div>
+
             <button id="searchBtn" class="btn btn-primary search-btn">Search Database</button>
         </div>
 

@@ -31,28 +31,38 @@ function doPost(e) {
 function doGet(e) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var values = sheet.getDataRange().getValues();
+  var headers = values[0];
+  var rows = values.slice(1);
   
-  if (e.parameter.query) {
+  var filter = e.parameter.filter;
+  var filteredRows = rows;
+
+  if (filter === "date_range") {
+    var start = new Date(e.parameter.start);
+    var end = new Date(e.parameter.end);
+    end.setHours(23, 59, 59);
+
+    filteredRows = rows.filter(function(row) {
+      if (!row[1]) return false;
+      var rowDate = new Date(row[1]);
+      return rowDate >= start && rowDate <= end;
+    });
+  } else if (e.parameter.query) {
     var query = e.parameter.query.toLowerCase();
-    var filter = e.parameter.filter || "voucher_id";
     var colIndex = -1;
-    
-    var headers = ["Voucher ID", "Date", "Prepared By", "Department", "Company", "Beneficiary", "Bank", "Account Number", "Account Name", "Description", "Qty", "Rate", "Amount", "Approver Email"];
-    
     if (filter === "voucher_id") colIndex = 0;
     else if (filter === "beneficiary") colIndex = 5;
     else if (filter === "prepared_by") colIndex = 2;
     
     if (colIndex !== -1) {
-      var filteredRows = values.filter(function(row, index) {
-        if (index === 0) return true; // Keep headers
+      filteredRows = rows.filter(function(row) {
         return row[colIndex] && row[colIndex].toString().toLowerCase().includes(query);
       });
-      return ContentService.createTextOutput(JSON.stringify(filteredRows)).setMimeType(ContentService.MimeType.JSON);
     }
   }
   
-  return ContentService.createTextOutput(JSON.stringify(values)).setMimeType(ContentService.MimeType.JSON);
+  var finalResult = [headers].concat(filteredRows);
+  return ContentService.createTextOutput(JSON.stringify(finalResult)).setMimeType(ContentService.MimeType.JSON);
 }
 ```
 
