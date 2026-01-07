@@ -70,6 +70,20 @@
                             <option value="Other">Other</option>
                         </select>
                     </div>
+                    <!-- File Attachment Section -->
+                    <div class="form-group" style="grid-column: span 2; margin-top: 1rem;">
+                        <label>📎 Attach Invoice/Receipt (Optional)</label>
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="fileInput" class="file-input" accept="image/*,.pdf"
+                                style="display: none;">
+                            <div class="file-custom-btn" onclick="document.getElementById('fileInput').click()"
+                                style="cursor: pointer; padding: 12px; border: 2px dashed #82c24c; border-radius: 8px; text-align: center; background: #f9fafb;">
+                                <span style="display: block; font-weight: 600; color: #82c24c;">📤 Choose File</span>
+                                <span id="fileNameDisplay" style="font-size: 12px; color: #6b7280;">No file chosen (Max
+                                    5MB)</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
