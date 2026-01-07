@@ -2,7 +2,8 @@
 // Cloud Sync Configuration
 // ===================================
 // 1. Follow the instructions in GOOGLE_SHEETS_SETUP.md to get this URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpqeS9CaljoT-mpyJwlSyHBdOiUCbwReQp_U_43Ny_eKqUDK0S058lIb60J-vWnz95kw/exec';
+
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIEJPd-k-ZfA2c6CR_fowWPYuFE2kQvqb8oGebL92HQKuI7s56yK-v9lgfQv7PFrGXAQ/exec';
 const MASTER_SHEET_ID = '1wtgftAfsGB279J8suIGpcsFw8Tf3_FFekYjvzUuOflY';
 
 // ===================================
