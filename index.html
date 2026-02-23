@@ -24,177 +24,227 @@
                         <img src="lighthill-logo.png" alt="LightHill Conglomerate" class="logo-img">
                     </div>
                     <div class="header-info">
-                        <h1 class="app-title">Cash Voucher</h1>
+                        <h1 class="app-title">Voucher Pro</h1>
                         <p class="app-subtitle">LightHill Conglomerate - Adding Values</p>
                     </div>
                 </div>
                 <div class="voucher-type-selector">
-                    <button class="type-btn active" data-type="petty-cash">
+                    <button class="type-btn active" data-type="petty-cash" onclick="handleTypeChange(this)">
                         <span class="type-icon">💰</span>
                         <span>Petty Cash</span>
                     </button>
-                    <button class="type-btn" data-type="cash-req">
+                    <button class="type-btn" data-type="cash-req" onclick="handleTypeChange(this)">
                         <span class="type-icon">📋</span>
                         <span>Cash Requisition</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Common Information -->
-            <div class="section">
-                <h2 class="section-title">
-                    <span class="title-icon">📝</span>
-                    General Information
-                </h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="date">Date</label>
-                        <input type="date" id="date" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label for="preparedBy">Prepared By</label>
-                        <input type="text" id="preparedBy" class="form-input" placeholder="Your name">
-                    </div>
-                    <div class="form-group">
-                        <label for="company">Company</label>
-                        <input type="text" id="company" class="form-input" placeholder="Company name">
-                    </div>
-                    <div class="form-group">
-                        <label for="department">Department</label>
-                        <select id="department" class="form-input">
-                            <option value="">Select Department</option>
-                            <option value="Admin">Admin</option>
-                            <option value="HR">HR</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Operations">Operations</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <!-- File Attachment Section -->
-                    <div class="form-group" style="grid-column: span 2; margin-top: 1rem;">
-                        <label>📎 Attach Invoice/Receipt (Optional)</label>
-                        <div class="file-upload-wrapper">
-                            <input type="file" id="fileInput" class="file-input" accept="image/*,.pdf"
-                                style="display: none;">
-                            <div class="file-custom-btn" onclick="document.getElementById('fileInput').click()"
-                                style="cursor: pointer; padding: 12px; border: 2px dashed #82c24c; border-radius: 8px; text-align: center; background: #f9fafb;">
-                                <span style="display: block; font-weight: 600; color: #82c24c;">📤 Choose File</span>
-                                <span id="fileNameDisplay" style="font-size: 12px; color: #6b7280;">No file chosen (Max
-                                    5MB)</span>
+            <!-- Main Tab Navigation -->
+            <div class="app-tabs">
+                <button class="tab-btn active" data-tab="create-tab" onclick="switchTab('create-tab')">
+                    <span class="tab-icon">➕</span> Create Voucher
+                </button>
+                <button class="tab-btn" data-tab="track-tab" onclick="switchTab('track-tab')">
+                    <span class="tab-icon">📊</span> Track Status
+                </button>
+                <button class="tab-btn" data-tab="search-tab" onclick="switchTab('search-tab')">
+                    <span class="tab-icon">🔍</span> Cloud Search
+                </button>
+            </div>
+
+            <div id="create-tab" class="tab-content active">
+
+                <!-- Common Information -->
+                <div class="section">
+                    <h2 class="section-title">
+                        <span class="title-icon">📝</span>
+                        General Information
+                    </h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="date">Date</label>
+                            <input type="date" id="date" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="preparedBy">Prepared By</label>
+                            <input type="text" id="preparedBy" class="form-input" placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Company</label>
+                            <input type="text" id="company" class="form-input" placeholder="Company name">
+                        </div>
+                        <div class="form-group">
+                            <label for="department">Department</label>
+                            <select id="department" class="form-input">
+                                <option value="">Select Department</option>
+                                <option value="Admin">Admin</option>
+                                <option value="HR">HR</option>
+                                <option value="Finance">Finance</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <!-- File Attachment Section -->
+                        <div class="form-group" style="grid-column: span 2; margin-top: 1rem;">
+                            <label>📎 Attach Invoice/Receipt (Optional)</label>
+                            <div class="file-upload-wrapper">
+                                <input type="file" id="fileInput" class="file-input" accept="image/*,.pdf"
+                                    style="display: none;">
+                                <div class="file-custom-btn" onclick="document.getElementById('fileInput').click()"
+                                    style="cursor: pointer; padding: 12px; border: 2px dashed #82c24c; border-radius: 8px; text-align: center; background: #f9fafb;">
+                                    <span style="display: block; font-weight: 600; color: #82c24c;">📤 Choose
+                                        File</span>
+                                    <span id="fileNameDisplay" style="font-size: 12px; color: #6b7280;">No file chosen
+                                        (Max
+                                        5MB)</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Beneficiaries Container -->
-            <div id="beneficiariesContainer">
-                <!-- Beneficiary blocks will be added here dynamically -->
-            </div>
+                <!-- Beneficiaries Container -->
+                <div id="beneficiariesContainer">
+                    <!-- Beneficiary blocks will be added here dynamically -->
+                </div>
 
-            <div class="beneficiary-actions">
-                <button class="btn btn-add-beneficiary" id="addBeneficiaryBtn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    Add Beneficiary / Payee
-                </button>
-            </div>
+                <div class="beneficiary-actions">
+                    <button class="btn btn-add-beneficiary" id="addBeneficiaryBtn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        Add Beneficiary / Payee
+                    </button>
+                </div>
 
-            <div class="final-total-section">
-                <div class="total-label">Grand Total Amount</div>
-                <div class="total-amount" id="grandTotalAmount">₦0.00</div>
-            </div>
+                <div class="final-total-section">
+                    <div class="total-label">Grand Total Amount</div>
+                    <div class="total-amount" id="grandTotalAmount">₦0.00</div>
+                </div>
 
-            <!-- Approval Email (Hidden from PDF/Excel but needed for submission) -->
-            <div class="section" style="margin-top: 2rem; border-top: 1px dashed var(--gray-300); padding-top: 2rem;">
-                <div class="form-group" style="max-width: 400px; margin: 0 auto;">
-                    <label for="approvedBy">Send for Approval to (Email)</label>
-                    <input type="email" id="approvedBy" class="form-input" placeholder="approver@company.com">
+                <!-- Approval Email (Hidden from PDF/Excel but needed for submission) -->
+                <div class="section"
+                    style="margin-top: 2rem; border-top: 1px dashed var(--gray-300); padding-top: 2rem;">
+                    <div class="form-group" style="max-width: 400px; margin: 0 auto;">
+                        <label for="approvedBy">Send for Approval to (Email)</label>
+                        <input type="email" id="approvedBy" class="form-input" placeholder="approver@company.com">
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="actions-section">
+                    <button class="btn btn-primary" id="sendEmailBtn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M2 5l8 5 8-5M2 5v10l8 5 8-5V5" />
+                        </svg>
+                        Send for Approval
+                    </button>
+                    <button class="btn btn-secondary" id="downloadPdfBtn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 14V4M10 14l-4-4M10 14l4-4M4 16h12" />
+                        </svg>
+                        Download PDF
+                    </button>
+                    <button class="btn btn-excel" id="downloadExcelBtn">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M4 4h12v12H4zM4 8h12M8 4v12" stroke="white" stroke-width="2" fill="none" />
+                        </svg>
+                        Master Excel
+                    </button>
+                </div>
+
+            </div> <!-- End Create Tab -->
+
+            <!-- Tracking Tab Content -->
+            <div id="track-tab" class="tab-content">
+                <div class="dashboard-header-inline">
+                    <h2 class="section-title">
+                        <span class="title-icon">📊</span>
+                        Approvals Tracking
+                    </h2>
+                    <button class="btn-refresh-wide" id="refreshDashboardBtnInline"
+                        onclick="refreshHistoryStatus('dashboard')">
+                        <span class="icon">🔄</span> Sync with Cloud
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="tracking-table">
+                        <thead>
+                            <tr>
+                                <th>Voucher ID</th>
+                                <th>Date</th>
+                                <th>Prepared By</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Comments / Reason</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardBody">
+                            <tr>
+                                <td colspan="7" class="empty-msg">No active vouchers.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="history-side-section">
+                    <div class="section-header">
+                        <h3 class="side-title">Recent Device History</h3>
+                        <button class="btn-clear-sm" onclick="clearHistory()">Clear All</button>
+                    </div>
+                    <div class="history-list-mini" id="historyList">
+                        <div class="empty-history">No local records.</div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="actions-section">
-                <button class="btn btn-primary" id="sendEmailBtn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M2 5l8 5 8-5M2 5v10l8 5 8-5V5" />
-                    </svg>
-                    Send for Approval
-                </button>
-                <button class="btn btn-secondary" id="downloadPdfBtn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 14V4M10 14l-4-4M10 14l4-4M4 16h12" />
-                    </svg>
-                    Download PDF
-                </button>
-                <button class="btn btn-excel" id="downloadExcelBtn">
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M4 4h12v12H4zM4 8h12M8 4v12" stroke="white" stroke-width="2" fill="none" />
-                    </svg>
-                    Master Excel
-                </button>
-            </div>
+            <!-- Search Tab Content -->
+            <div id="search-tab" class="tab-content">
+                <div class="search-hero">
+                    <h2 class="section-title">
+                        <span class="title-icon">🔎</span>
+                        Archive Explorer
+                    </h2>
+                    <p class="search-desc">Search the shared repository for any past transaction (Approved, Rejected, or
+                        Pending).</p>
+                </div>
 
+                <div class="search-box-premium">
+                    <div class="search-inputs-row">
+                        <select id="searchFilter" class="form-input search-filter" onchange="toggleSearchInputs()">
+                            <option value="voucher_id">Voucher ID</option>
+                            <option value="beneficiary">Beneficiary Name</option>
+                            <option value="prepared_by">Prepared By</option>
+                            <option value="date_range">Date Range</option>
+                        </select>
+
+                        <div id="searchQueryContainer" style="flex: 1;">
+                            <input type="text" id="searchQuery" class="form-input search-input" placeholder="Search...">
+                        </div>
+
+                        <div id="dateRangeContainer" style="display: none; align-items: center; gap: 10px; flex: 1;">
+                            <input type="date" id="startDate" class="form-input">
+                            <span style="color: var(--gray-400);">to</span>
+                            <input type="date" id="endDate" class="form-input">
+                        </div>
+
+                        <button id="searchBtn" class="btn btn-primary search-btn-premium"
+                            onclick="performSearch()">Search database</button>
+                    </div>
+                </div>
+
+                <div class="search-results-list" id="searchResults">
+                    <div class="empty-search">Ready to search across all company records.</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Status Toast Container -->
     <div id="status-container"></div>
 
-    <!-- Shared Database Search UI -->
-    <div class="history-section search-section-card" id="searchSection">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="title-icon">🔎</span>
-                Search Database
-            </h2>
-        </div>
-
-        <div class="search-controls">
-            <select id="searchFilter" class="form-input search-filter" onchange="toggleSearchInputs()">
-                <option value="voucher_id">Voucher ID</option>
-                <option value="beneficiary">Beneficiary Name</option>
-                <option value="prepared_by">Prepared By</option>
-                <option value="date_range">Date Range</option>
-            </select>
-
-            <div id="searchQueryContainer" style="flex: 1;">
-                <input type="text" id="searchQuery" class="form-input search-input" placeholder="Enter ID or Name...">
-            </div>
-
-            <div id="dateRangeContainer" style="display: none; align-items: center; gap: 10px; flex: 1;">
-                <input type="date" id="startDate" class="form-input">
-                <span style="color: var(--gray-500);">to</span>
-                <input type="date" id="endDate" class="form-input">
-            </div>
-
-            <button id="searchBtn" class="btn btn-primary search-btn">Search Database</button>
-        </div>
-
-        <div class="search-results-list" id="searchResults">
-            <!-- Results appear here -->
-            <div class="empty-history">Search the shared Google Sheets database above to retrieve any past transaction.
-            </div>
-        </div>
-    </div>
-
-    <!-- History Modal / Sidebar -->
-    <div class="history-section" id="historySection">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="title-icon">📜</span>
-                Recent Vouchers
-            </h2>
-            <div class="history-controls">
-                <button class="btn-refresh" id="refreshHistoryBtn" title="Sync with Cloud">🔄 Refresh Status</button>
-                <button class="btn-clear" id="clearHistoryBtn">Clear All</button>
-            </div>
-        </div>
-        <div class="history-list" id="historyList">
-            <div class="empty-history">No history yet. Send a voucher to see it here!</div>
-        </div>
-    </div>
 
 
     <!-- SheetJS Library for Excel Export -->

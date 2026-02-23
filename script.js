@@ -58,15 +58,25 @@ function init() {
         startDate: document.getElementById('startDate'),
         endDate: document.getElementById('endDate'),
         searchQueryContainer: document.getElementById('searchQueryContainer'),
-        dateRangeContainer: document.getElementById('dateRangeContainer')
+        dateRangeContainer: document.getElementById('dateRangeContainer'),
+        searchQueryContainer: document.getElementById('searchQueryContainer'),
+        dateRangeContainer: document.getElementById('dateRangeContainer'),
+        dashboardBody: document.getElementById('dashboardBody'),
+        refreshDashboardBtn: document.getElementById('refreshDashboardBtnInline')
     };
 
     // Check for approval mode in URL
     const urlParams = new URLSearchParams(window.location.search);
     const vId = urlParams.get('vId');
+    const mode = urlParams.get('mode');
+
     if (vId) {
-        state.isApprovalMode = true;
-        setupApprovalMode(vId);
+        if (mode === 'approve') {
+            state.isApprovalMode = true;
+        }
+        setupApprovalMode(vId, mode);
+        // Automatically switch to create-tab to see the loaded voucher
+        switchTab('create-tab');
     }
 
     // Set default date
@@ -77,24 +87,66 @@ function init() {
         addBeneficiary();
     }
 
-    // Render history
+    // Render history and dashboard
     renderHistory();
+    renderTrackingDashboard();
 
     // Event Listeners
     setupEventListeners();
+
+    // Auto-refresh visibility for approval mode
+    if (state.isApprovalMode && elements.approvedByInput) {
+        elements.approvedByInput.closest('.section').style.display = 'none';
+        document.querySelector('.actions-section').style.display = 'none';
+    }
 }
 
-async function setupApprovalMode(voucherId) {
-    showStatus('Loading Voucher for Approval...', 'info');
+async function setupApprovalMode(voucherId, mode) {
+    showStatus('Loading Voucher Data...', 'info');
     try {
+        // 1. Load the actual voucher content into the form
+        await viewVoucherFromDatabase(voucherId);
+
+        // 2. Fetch the current status
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getStatus&voucherId=${voucherId}`);
         const data = await response.json();
 
-        // Show approval panel
-        renderApprovalPanel(voucherId, data.status);
+        // 3. Show appropriate UI based on mode
+        if (mode === 'approve') {
+            renderApprovalPanel(voucherId, data.status);
+        } else {
+            renderTrackingBanner(voucherId, data.status, data.comment);
+        }
     } catch (e) {
-        console.error('Error loading approval mode:', e);
+        console.error('Error loading voucher mode:', e);
+        showStatus('Failed to load voucher details', 'error');
     }
+}
+
+function renderTrackingBanner(voucherId, currentStatus, comment) {
+    // Remove any existing panels
+    const existing = document.querySelector('.approval-panel, .tracking-banner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.className = 'tracking-banner';
+    const status = currentStatus || 'Pending';
+    const statusClass = `badge-${status.toLowerCase()}`;
+
+    banner.innerHTML = `
+        <div class="tracking-banner-content">
+            <div class="tracking-info">
+                <span class="tracking-label">VIEWING VOUCHER:</span>
+                <span class="tracking-id">${voucherId}</span>
+                <span class="status-badge ${statusClass}">${status}</span>
+            </div>
+            ${comment ? `<div class="tracking-comment"><strong>Approver Comment:</strong> ${comment}</div>` : ''}
+            <div class="tracking-actions-top">
+                <button class="btn-close-tracking" onclick="window.location.href=window.location.pathname">✕ Exit View</button>
+            </div>
+        </div>
+    `;
+    document.querySelector('.voucher-card').prepend(banner);
 }
 
 function renderApprovalPanel(voucherId, currentStatus) {
@@ -122,6 +174,11 @@ function renderApprovalPanel(voucherId, currentStatus) {
 
 async function updateVoucherStatus(voucherId, status) {
     const comment = document.getElementById('approverComment').value;
+    if (status === 'Reduced' && !comment) {
+        showStatus('Please provide a comment for the reduction.', 'warning');
+        return;
+    }
+
     showStatus(`Updating status to ${status}...`, 'info');
 
     try {
@@ -135,10 +192,43 @@ async function updateVoucherStatus(voucherId, status) {
                 comment: comment
             })
         });
+
+        // Update local history if it exists
+        const localEntry = state.history.find(h => h.voucherId === voucherId);
+        if (localEntry) {
+            localEntry.status = status;
+            localEntry.comment = comment;
+            localStorage.setItem('voucher_history', JSON.stringify(state.history));
+        }
+
         showStatus(`Voucher ${status} Successfully!`, 'success');
-        setTimeout(() => window.location.reload(), 2000);
+        setTimeout(() => {
+            // Reload to dashboard to show updated status
+            window.location.href = window.location.pathname + '?tab=track-tab';
+        }, 2000);
     } catch (e) {
         showStatus('Update failed', 'error');
+    }
+}
+
+function switchTab(tabId) {
+    // Update State
+    const tabs = document.querySelectorAll('.tab-content');
+    const buttons = document.querySelectorAll('.tab-btn');
+
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.id === tabId) tab.classList.add('active');
+    });
+
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabId) btn.classList.add('active');
+    });
+
+    // Handle scroll if needed
+    if (tabId === 'track-tab') {
+        refreshHistoryStatus('dashboard');
     }
 }
 
@@ -184,10 +274,9 @@ function setupEventListeners() {
         elements.clearHistoryBtn.addEventListener('click', clearHistory);
     }
 
-    // Add Refresh History button listener if it exists
-    const refreshBtn = document.getElementById('refreshHistoryBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', refreshHistoryStatus);
+    // Dashboard listeners
+    if (elements.refreshDashboardBtn) {
+        elements.refreshDashboardBtn.addEventListener('click', () => refreshHistoryStatus('dashboard'));
     }
 }
 
@@ -429,7 +518,7 @@ async function handleSendEmail() {
         return `BENEFICIARY #${i + 1}: ${b.employeeName}\nBank: ${b.bankName} | Acc: ${b.accountNumber}\nTransactions:\n${transTable}\nSubtotal: ₦${b.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}`;
     }).join('\n\n' + '='.repeat(30) + '\n\n');
 
-    const fullSummary = `Voucher ID: ${voucherId}\nPrepared By: ${state.preparedBy}\nDepartment: ${state.department || 'N/A'}\n\n${beneficiarySummaries}\n\nGRAND TOTAL: ₦${grandTotal.toLocaleString()}\n\nTrack/Approve here: ${trackingLink}`;
+    const fullSummary = `Voucher ID: ${voucherId}\nPrepared By: ${state.preparedBy}\nDepartment: ${state.department || 'N/A'}\n\n${beneficiarySummaries}\n\nGRAND TOTAL: ₦${grandTotal.toLocaleString()}\n\nApprove here: ${trackingLink}&mode=approve\nTrack here: ${trackingLink}`;
 
     // Save to local history immediately (Persistent records)
     const newEntry = {
@@ -527,6 +616,7 @@ async function handleSendEmail() {
 
         // Reset local form AFTER a short delay to ensure submission captured
         setTimeout(() => {
+            state.voucherId = ''; // Reset ID so next one is a new entry
             state.beneficiaries = [];
             state.attachment = null;
             if (elements.fileInput) elements.fileInput.value = '';
@@ -846,36 +936,80 @@ function saveToHistory(voucherId) {
     // Handled inside handleSendEmail now
 }
 
-async function refreshHistoryStatus() {
+async function refreshHistoryStatus(refreshSource = 'history') {
     if (!GOOGLE_SCRIPT_URL || state.history.length === 0) return;
 
-    showStatus('Updating voucher statuses...', 'info');
-    const refreshBtn = document.getElementById('refreshHistoryBtn');
-    if (refreshBtn) refreshBtn.classList.add('rotating');
+    showStatus('Syncing status with cloud...', 'info');
+
+    // Animate the correct button
+    let activeBtn;
+    if (refreshSource === 'dashboard') {
+        activeBtn = elements.refreshDashboardBtn;
+    } else {
+        activeBtn = document.getElementById('refreshHistoryBtn');
+    }
+
+    if (activeBtn) activeBtn.classList.add('rotating');
 
     try {
-        // We pulse through history and check statuses from GS
-        // For performance, we'll just fetch ALL records via search and match IDs
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?filter=voucher_id&query=`);
         const cloudRecords = await response.json();
 
         state.history.forEach(entry => {
             const cloudMatch = cloudRecords.find(r => r.voucherId === entry.voucherId);
             if (cloudMatch) {
-                entry.status = cloudMatch.status;
-                entry.comment = cloudMatch.comment;
+                entry.status = cloudMatch.status || 'Pending';
+                entry.comment = cloudMatch.comment || '';
             }
         });
 
         localStorage.setItem('voucher_history', JSON.stringify(state.history));
         renderHistory();
-        showStatus('History synced with cloud', 'success');
+        renderTrackingDashboard();
+        showStatus('All statuses updated!', 'success');
     } catch (e) {
         console.error('Refresh error:', e);
-        showStatus('Failed to sync history', 'warning');
+        showStatus('Cloud sync failed', 'warning');
     } finally {
-        if (refreshBtn) refreshBtn.classList.remove('rotating');
+        if (activeBtn) activeBtn.classList.remove('rotating');
     }
+}
+
+function renderTrackingDashboard() {
+    if (!elements.dashboardBody) return;
+
+    if (state.history.length === 0) {
+        elements.dashboardBody.innerHTML = `<tr><td colspan="7" class="empty-msg">No active vouchers tracked. Send your first voucher to begin!</td></tr>`;
+        return;
+    }
+
+    elements.dashboardBody.innerHTML = state.history.map(h => {
+        const vId = h.voucherId || 'N/A';
+        const date = h.date || 'N/A';
+        const prep = h.preparedBy || 'N/A';
+        const amount = `₦${(h.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+        const status = h.status || 'Pending';
+        const comment = h.comment || 'No comments yet';
+        const statusClass = `badge-${status.toLowerCase()}`;
+        const trackingLink = `${window.location.protocol}//${window.location.host}${window.location.pathname}?vId=${vId}&mode=track`;
+
+        return `
+            <tr>
+                <td><span class="tracking-id">${vId}</span></td>
+                <td>${date}</td>
+                <td>${prep}</td>
+                <td class="history-amount">${amount}</td>
+                <td><span class="status-badge ${statusClass}">${status}</span></td>
+                <td><div class="comment-text" title="${comment}">${comment}</div></td>
+                <td>
+                    <div class="tracking-actions">
+                        <button class="btn-dashboard-action btn-edit-tracked" onclick="editVoucher('${vId}')">✏️ Edit/Resubmit</button>
+                        <a href="${trackingLink}" class="btn-dashboard-action btn-track-item">🔍 Track</a>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function renderHistory() {
@@ -909,7 +1043,7 @@ function renderHistory() {
                     <span>Prep: ${prep} | Payees: ${bCount}</span>
                     <div class="history-actions">
                         <button class="btn-edit-inline" onclick="editVoucher('${vId}')">✏️ Edit</button>
-                        <a href="${window.location.protocol}//${window.location.host}${window.location.pathname}?vId=${vId}" target="_blank" class="track-link-small">🔍 Track</a>
+                        <a href="${window.location.protocol}//${window.location.host}${window.location.pathname}?vId=${vId}&mode=track" class="track-link-small">🔍 Track</a>
                     </div>
                 </div>
                 ${h.comment ? `<div class="history-comment">💬 ${h.comment}</div>` : ''}
@@ -1069,11 +1203,15 @@ window.viewVoucherFromDatabase = async function (vid) {
         const response = await fetch(`${GOOGLE_SCRIPT_URL}?filter=voucher_id&query=${encodeURIComponent(vid)}`);
         const data = await response.json();
 
-        if (data.length <= 1) return;
+        if (data.length <= 1) {
+            showStatus('Voucher not found in database', 'error');
+            return;
+        }
         const rows = data.slice(1);
         const base = rows[0];
 
         // Repopulate state
+        state.voucherId = vid; // Ensure current voucher ID is tracked
         state.date = base[1];
         state.preparedBy = base[2];
         state.department = base[3];
@@ -1097,18 +1235,25 @@ window.viewVoucherFromDatabase = async function (vid) {
 
         state.beneficiaries = Object.values(groups).map((b, i) => ({ id: Date.now() + i, ...b }));
 
-        // Update UI
-        elements.preparedByInput.value = state.preparedBy;
-        elements.companyInput.value = state.company;
-        elements.departmentInput.value = state.department;
-        elements.approvedByInput.value = state.approvedBy;
-        elements.dateInput.value = state.date;
+        // Update UI fields
+        if (elements.preparedByInput) elements.preparedByInput.value = state.preparedBy;
+        if (elements.companyInput) elements.companyInput.value = state.company;
+        if (elements.departmentInput) elements.departmentInput.value = state.department;
+        if (elements.approvedByInput) elements.approvedByInput.value = state.approvedBy;
+        if (elements.dateInput) elements.dateInput.value = state.date;
 
         renderBeneficiaries();
-        showStatus('Voucher retrieved from Cloud', 'success');
+        updateGrandTotal();
+        showStatus('Voucher data loaded', 'success');
+
+        // Scroll to top to see tracking banner/form
         window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        return true; // Return success for async chaining
     } catch (err) {
+        console.error('View Data Error:', err);
         showStatus('Failed to retrieve voucher', 'error');
+        return false;
     }
 }
 
@@ -1118,6 +1263,7 @@ window.removeBeneficiary = removeBeneficiary;
 window.addTransaction = addTransaction;
 window.deleteTransaction = deleteTransaction;
 window.addBeneficiary = addBeneficiary;
+window.switchTab = switchTab;
 
 // ===================================
 // Initialize on DOM Load
