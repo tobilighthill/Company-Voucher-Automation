@@ -10,6 +10,7 @@ const MASTER_SHEET_ID = '1wtgftAfsGB279J8suIGpcsFw8Tf3_FFekYjvzUuOflY';
 // Application State
 // ===================================
 const state = {
+    voucherId: '', // Current voucher ID if editing
     voucherType: 'petty-cash',
     date: new Date().toISOString().split('T')[0],
     preparedBy: '',
@@ -19,6 +20,7 @@ const state = {
     approvedBy: '',
     attachment: null, // Stores { name, data, type }
     isViewingHistory: false,
+    isApprovalMode: false,
     history: JSON.parse(localStorage.getItem('voucher_history') || '[]')
 };
 
@@ -59,6 +61,14 @@ function init() {
         dateRangeContainer: document.getElementById('dateRangeContainer')
     };
 
+    // Check for approval mode in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const vId = urlParams.get('vId');
+    if (vId) {
+        state.isApprovalMode = true;
+        setupApprovalMode(vId);
+    }
+
     // Set default date
     if (elements.dateInput) elements.dateInput.value = state.date;
 
@@ -72,6 +82,64 @@ function init() {
 
     // Event Listeners
     setupEventListeners();
+}
+
+async function setupApprovalMode(voucherId) {
+    showStatus('Loading Voucher for Approval...', 'info');
+    try {
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getStatus&voucherId=${voucherId}`);
+        const data = await response.json();
+
+        // Show approval panel
+        renderApprovalPanel(voucherId, data.status);
+    } catch (e) {
+        console.error('Error loading approval mode:', e);
+    }
+}
+
+function renderApprovalPanel(voucherId, currentStatus) {
+    const panel = document.createElement('div');
+    panel.className = 'approval-panel';
+    panel.innerHTML = `
+        <div class="approval-header">
+            <h3>Approval Panel - Voucher ${voucherId}</h3>
+            <span class="status-badge badge-${currentStatus?.toLowerCase()}">${currentStatus || 'Pending'}</span>
+        </div>
+        <div class="approval-body">
+            <div class="form-group">
+                <label>Approver Comment</label>
+                <textarea id="approverComment" class="form-input" placeholder="Enter comments or reason for reduction..."></textarea>
+            </div>
+            <div class="approval-actions">
+                <button class="btn btn-success" onclick="updateVoucherStatus('${voucherId}', 'Approved')">Approve Entirely</button>
+                <button class="btn btn-warning" onclick="updateVoucherStatus('${voucherId}', 'Reduced')">Reduce / Adjust</button>
+                <button class="btn btn-danger" onclick="updateVoucherStatus('${voucherId}', 'Rejected')">Reject</button>
+            </div>
+        </div>
+    `;
+    document.querySelector('.voucher-card').prepend(panel);
+}
+
+async function updateVoucherStatus(voucherId, status) {
+    const comment = document.getElementById('approverComment').value;
+    showStatus(`Updating status to ${status}...`, 'info');
+
+    try {
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+                action: 'update',
+                voucherId: voucherId,
+                status: status,
+                comment: comment
+            })
+        });
+        showStatus(`Voucher ${status} Successfully!`, 'success');
+        setTimeout(() => window.location.reload(), 2000);
+    } catch (e) {
+        showStatus('Update failed', 'error');
+    }
 }
 
 // ===================================
@@ -114,6 +182,12 @@ function setupEventListeners() {
     // History listeners
     if (elements.clearHistoryBtn) {
         elements.clearHistoryBtn.addEventListener('click', clearHistory);
+    }
+
+    // Add Refresh History button listener if it exists
+    const refreshBtn = document.getElementById('refreshHistoryBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshHistoryStatus);
     }
 }
 
@@ -345,7 +419,8 @@ async function handleSendEmail() {
     const dateStr = now.toISOString().slice(2, 10).replace(/-/g, ''); // 260105
     const timeStr = now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0'); // 1613
     const randomSalt = Math.random().toString(36).substring(2, 4).toUpperCase(); // A4
-    const voucherId = `LH-${dateStr}-${timeStr}-${randomSalt}`;
+    const voucherId = state.voucherId || `LH-${dateStr}-${timeStr}-${randomSalt}`;
+    const trackingLink = `${window.location.protocol}//${window.location.host}${window.location.pathname}?vId=${voucherId}`;
     const grandTotal = state.beneficiaries.reduce((sum, b) => sum + b.transactions.reduce((s, t) => s + t.amount, 0), 0);
 
     // Build Detailed Summary for Email
@@ -354,7 +429,7 @@ async function handleSendEmail() {
         return `BENEFICIARY #${i + 1}: ${b.employeeName}\nBank: ${b.bankName} | Acc: ${b.accountNumber}\nTransactions:\n${transTable}\nSubtotal: ₦${b.transactions.reduce((s, t) => s + t.amount, 0).toLocaleString()}`;
     }).join('\n\n' + '='.repeat(30) + '\n\n');
 
-    const fullSummary = `Voucher ID: ${voucherId}\nPrepared By: ${state.preparedBy}\nDepartment: ${state.department || 'N/A'}\n\n${beneficiarySummaries}\n\nGRAND TOTAL: ₦${grandTotal.toLocaleString()}`;
+    const fullSummary = `Voucher ID: ${voucherId}\nPrepared By: ${state.preparedBy}\nDepartment: ${state.department || 'N/A'}\n\n${beneficiarySummaries}\n\nGRAND TOTAL: ₦${grandTotal.toLocaleString()}\n\nTrack/Approve here: ${trackingLink}`;
 
     // Save to local history immediately (Persistent records)
     const newEntry = {
@@ -365,9 +440,19 @@ async function handleSendEmail() {
         company: state.company,
         beneficiaries: JSON.parse(JSON.stringify(state.beneficiaries)),
         grandTotal,
+        status: 'Pending',
         timestamp: new Date().toISOString()
     };
-    state.history.unshift(newEntry);
+
+    // Replace if editing, otherwise add new
+    if (state.voucherId) {
+        const idx = state.history.findIndex(h => h.voucherId === state.voucherId);
+        if (idx !== -1) state.history[idx] = newEntry;
+        else state.history.unshift(newEntry);
+    } else {
+        state.history.unshift(newEntry);
+    }
+
     localStorage.setItem('voucher_history', JSON.stringify(state.history));
     renderHistory();
 
@@ -382,6 +467,7 @@ async function handleSendEmail() {
         Total_Voucher_Amount: `₦${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
         Beneficiaries_Count: state.beneficiaries.length,
         Breakdown: fullSummary,
+        Tracking_Link: trackingLink,
         _template: "table",
         _captcha: "false"
     };
@@ -730,7 +816,8 @@ async function syncToGoogleSheets(voucherEntry) {
                 'Qty': t.quantity,
                 'Rate': t.rate,
                 'Amount': t.amount,
-                'Approver Email': state.approvedBy
+                'Approver Email': state.approvedBy,
+                'Status': voucherEntry.status || 'Pending'
             });
         });
     });
@@ -738,14 +825,14 @@ async function syncToGoogleSheets(voucherEntry) {
     try {
         const response = await fetch(GOOGLE_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // Required for Google Apps Script redirects
+            mode: 'no-cors',
             cache: 'no-cache',
-            headers: {
-                // With no-cors, we cannot send 'Content-Type: application/json'
-                // We send as plain text and let the script handle its own parsing if needed,
-                // however most Apps Script doPost(e) methods work best with default form-data or simple text
-            },
-            body: JSON.stringify(rows)
+            body: JSON.stringify({
+                action: state.voucherId ? 'update' : 'create',
+                data: rows,
+                voucherId: voucherEntry.voucherId,
+                status: voucherEntry.status
+            })
         });
         console.log('Syncing to Google Sheets...');
         showStatus('Cloud Backup Synced!', 'success');
@@ -759,6 +846,38 @@ function saveToHistory(voucherId) {
     // Handled inside handleSendEmail now
 }
 
+async function refreshHistoryStatus() {
+    if (!GOOGLE_SCRIPT_URL || state.history.length === 0) return;
+
+    showStatus('Updating voucher statuses...', 'info');
+    const refreshBtn = document.getElementById('refreshHistoryBtn');
+    if (refreshBtn) refreshBtn.classList.add('rotating');
+
+    try {
+        // We pulse through history and check statuses from GS
+        // For performance, we'll just fetch ALL records via search and match IDs
+        const response = await fetch(`${GOOGLE_SCRIPT_URL}?filter=voucher_id&query=`);
+        const cloudRecords = await response.json();
+
+        state.history.forEach(entry => {
+            const cloudMatch = cloudRecords.find(r => r.voucherId === entry.voucherId);
+            if (cloudMatch) {
+                entry.status = cloudMatch.status;
+                entry.comment = cloudMatch.comment;
+            }
+        });
+
+        localStorage.setItem('voucher_history', JSON.stringify(state.history));
+        renderHistory();
+        showStatus('History synced with cloud', 'success');
+    } catch (e) {
+        console.error('Refresh error:', e);
+        showStatus('Failed to sync history', 'warning');
+    } finally {
+        if (refreshBtn) refreshBtn.classList.remove('rotating');
+    }
+}
+
 function renderHistory() {
     if (!elements.historyList) return;
 
@@ -768,26 +887,61 @@ function renderHistory() {
     }
 
     elements.historyList.innerHTML = state.history.map(h => {
-        // Defensive checks for old/incompatible history records
         const vId = h.voucherId || h.id || 'N/A';
         const total = h.grandTotal || h.total || 0;
         const date = h.timestamp ? new Date(h.timestamp).toLocaleString() : (h.date || 'N/A');
         const prep = h.preparedBy || h.name || 'Unknown';
         const bCount = h.beneficiaries ? h.beneficiaries.length : 1;
+        const status = h.status || 'Pending';
+        const statusClass = `badge-${status.toLowerCase()}`;
 
         return `
             <div class="history-item">
                 <div class="history-item-header">
-                    <span>${vId}</span>
-                    <span>₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span class="history-v-id">${vId}</span>
+                    <span class="history-amount">₦${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div class="history-item-date">${date}</div>
-                <div style="font-size: 11px; margin-top: 5px; opacity: 0.8;">
-                    Prep: ${prep} | Payees: ${bCount}
+                <div class="history-meta">
+                    <div class="history-item-date">${date}</div>
+                    <span class="status-badge ${statusClass}">${status}</span>
                 </div>
+                <div class="history-details-row">
+                    <span>Prep: ${prep} | Payees: ${bCount}</span>
+                    <div class="history-actions">
+                        <button class="btn-edit-inline" onclick="editVoucher('${vId}')">✏️ Edit</button>
+                        <a href="${window.location.protocol}//${window.location.host}${window.location.pathname}?vId=${vId}" target="_blank" class="track-link-small">🔍 Track</a>
+                    </div>
+                </div>
+                ${h.comment ? `<div class="history-comment">💬 ${h.comment}</div>` : ''}
             </div>
         `;
     }).join('');
+}
+
+function editVoucher(voucherId) {
+    const entry = state.history.find(h => h.voucherId === voucherId);
+    if (!entry) return;
+
+    // Prepopulate form
+    state.voucherId = entry.voucherId;
+    state.date = entry.date;
+    state.preparedBy = entry.preparedBy;
+    state.company = entry.company;
+    state.department = entry.department;
+    state.beneficiaries = JSON.parse(JSON.stringify(entry.beneficiaries));
+
+    // Update UI
+    if (elements.dateInput) elements.dateInput.value = state.date;
+    if (elements.preparedByInput) elements.preparedByInput.value = state.preparedBy;
+    if (elements.companyInput) elements.companyInput.value = state.company;
+    if (elements.departmentInput) elements.departmentInput.value = state.department;
+
+    renderBeneficiaries();
+    updateGrandTotal();
+
+    // Smooth scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showStatus('Voucher loaded for editing', 'info');
 }
 
 function clearHistory() {

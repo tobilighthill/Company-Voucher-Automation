@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightHill Future of Finance & Voucher System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #82c24c;
+            --primary-dark: #6daa3c;
+            --accent-blue: #0ea5e9;
+            /* Sky blue for "Global/Tech" */
+            --accent-purple: #8b5cf6;
+            /* Purple for "AI/Future" */
+            --secondary: #1e293b;
+            --bg-light: #ffffff;
+            --bg-off-white: #f1f5f9;
+            --text-main: #0f172a;
+            --text-secondary: #475569;
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --gradient-hero: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .slides-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem 2rem;
+            /* Reduced padding for smaller screens */
+            background: var(--bg-light);
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: all;
+            z-index: 10;
+        }
+
+        /* --- Header --- */
+        .header-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .slide-counter {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* --- Slide 1: Strategic Vision Specifics --- */
+        .vision-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            width: 100%;
+            max-width: 1400px;
+            margin-top: 3rem;
+        }
+
+        .vision-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Colored top borders for vision cards */
+        .vc-global {
+            border-top: 6px solid var(--accent-blue);
+        }
+
+        .vc-power {
+            border-top: 6px solid var(--accent-purple);
+        }
+
+        .vc-lighthill {
+            border-top: 6px solid var(--primary);
+            background: #fcffff;
+        }
+
+        .vision-card h3 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .vision-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .vision-list {
+            list-style: none;
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        .vision-list li {
+            margin-bottom: 0.8rem;
+            font-size: 1rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .vision-list li::before {
+            content: "✓";
+            color: var(--primary);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        /* --- General Typography --- */
+        h1 {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+            background: linear-gradient(to right, #1e293b, #334155);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: clamp(1rem, 1.5vw, 1.25rem);
+            color: var(--text-secondary);
+            text-align: center;
+            max-width: 800px;
+            margin-bottom: 2rem;
+        }
+
+        /* --- Grid for Feature Cards (Slide 3) --- */
+        /* Improved to prevent overflow */
+        .features-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+            overflow-y: auto;
+            /* Allow scrolling if screen is too short */
+            padding-bottom: 2rem;
+        }
+
+        .feature-box {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            padding: 1.5rem;
+            border-radius: 12px;
+            width: 250px;
+            text-align: left;
+            flex-shrink: 0;
+            /* Prevent squishing */
+        }
+
+        .feature-box h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #0f172a;
+        }
+
+        .feature-box p {
+            font-size: 0.9rem;
+            color: #475569;
+            line-height: 1.4;
+        }
+
+        /* --- Controls --- */
+        .controls {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(30, 41, 59, 0.9);
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .progress-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            height: 5px;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s;
+            z-index: 100;
+        }
+
+        /* --- Link Button --- */
+        .btn-link {
+            background: var(--primary);
+            color: white;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.8rem;
+            box-shadow: 0 4px 6px -1px rgba(130, 194, 76, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .btn-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(130, 194, 76, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header-bar">
+        <div style="font-weight: 800; font-size: 1.2rem; color: var(--secondary);">LightHill <span
+                style="color:var(--primary);">Group</span></div>
+        <div class="slide-counter" id="slideCounter">1 / 9</div>
+    </div>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <div class="slides-container">
+
+        <!-- SLIDE 1: STRATEGIC VISION (The "Powerful" Intro) -->
+        <div class="slide active">
+            <h1 style="margin-top: 2rem;">The Financial Revolution</h1>
+            <p class="subtitle">How <strong>Data Science, AI, & Automation</strong> are earning billions for top
+                firms—and how LightHill will use them.</p>
+
+            <div class="vision-grid">
+                <!-- 1. The Global Standard -->
+                <div class="vision-card vc-global">
+                    <span class="vision-icon">🌍</span>
+                    <h3>The Global Standard</h3>
+                    <!--<p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1rem;">What JPMorgan, BlackRock, & Goldman Sachs do:</p>-->
+                    <ul class="vision-list">
+                        <li><strong>Automated Trading:</strong> AI predicts currency & stock dips instantly.</li>
+                        <li><strong>Smart Risk:</strong> Algorithms analyze million data points for Loans.</li>
+                        <li><strong>Zero Manual Work:</strong> Software handles operations; humans make decisions.</li>
+                    </ul>
+                </div>
+
+                <!-- 2. The Power of Tech -->
+                <div class="vision-card vc-power">
+                    <span class="vision-icon">⚡</span>
+                    <h3>What Tech Does</h3>
+                    <ul class="vision-list">
+                        <li><strong>Predictive Analytics:</strong> Knowing the market move <em>before</em> it happens.
+                        </li>
+                        <li><strong>Error Elimination:</strong> Computers don't make calculation mistakes.</li>
+                        <li><strong>Velocity:</strong> Closing deals in minutes vs. days.</li>
+                    </ul>
+                </div>
+
+                <!-- 3. LightHill's Application -->
+                <div class="vision-card vc-lighthill">
+                    <span class="vision-icon">🚀</span>
+                    <h3>LightHill's Future</h3>
+                    <ul class="vision-list">
+                        <li><strong>Bureau (FX):</strong> AI-driven rate alerts & trend forecasting.</li>
+                        <li><strong>Real Estate:</strong> Data models for property valuation.</li>
+                        <li><strong>Step 1 (Today):</strong> <span
+                                style="color:var(--primary); font-weight:800;">Automating Internal Cash
+                                Processes.</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; font-weight: 600; color: var(--primary);">
+                Today, we take the first step towards this automated future.
+            </div>
+        </div>
+
+        <!-- SLIDE 2: Introducing the Tool -->
+        <div class="slide">
+            <h2>Step 1: The Cash Voucher System</h2>
+            <p class="subtitle">A dedicated, secure platform to manage our internal cash requests.</p>
+
+            <div style="margin: 2rem 0;">
+                <a href="https://cash-voucher.netlify.app/" target="_blank" class="btn-link">
+                    <span>🚀 Launch App</span>
+                </a>
+            </div>
+            <div style="font-family: monospace; color: var(--text-secondary); margin-top: 1rem;">
+                https://cash-voucher.netlify.app
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 3rem; justify-content: center;">
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: var(--text-main);">100%</div>
+                    <div style="color: var(--text-secondary);">Paperless</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: var(--text-main);">0</div>
+                    <div style="color: var(--text-secondary);">Lost Files</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: 800; color: var(--text-main);">2 min</div>
+                    <div style="color: var(--text-secondary);">Approval Time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: Why Change? -->
+        <div class="slide">
+            <h2>Why ditch the paper book?</h2>
+
+            <div class="features-container">
+                <div class="feature-box">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🚫📝</div>
+                    <h3>Kill the Paperwork</h3>
+                    <p>Printing, signing, and scanning is slow. Digital is instant and costs nothing.</p>
+                </div>
+
+                <div class="feature-box">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🧠</div>
+                    <h3>Data Intelligence</h3>
+                    <p>With digital vouchers, we can visualize expenses. Who spends the most? Which month is highest?
+                    </p>
+                </div>
+
+                <div class="feature-box">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📲</div>
+                    <h3>Anywhere Access</h3>
+                    <p>Submit from your Laptop at a property site, or from home. No need to be in the office.</p>
+                </div>
+
+                <div class="feature-box">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔒</div>
+                    <h3>Secure & Searchable</h3>
+                    <p>Find any past transaction in seconds by typing a name. No digging through files.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: How It Works -->
+        <div class="slide">
+            <h2>How It Works</h2>
+            <div style="display: flex; gap: 2rem; margin-top: 2rem; flex-wrap: wrap; justify-content: center;">
+                <!-- Step 1 -->
+                <div style="text-align: center; width: 200px;">
+                    <div
+                        style="width: 60px; height: 60px; background: var(--secondary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+                        1</div>
+                    <h3 style="margin-bottom: 0.5rem;">Open Link</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Go to the website on your
+                        laptop.</p>
+                </div>
+
+                <!-- Arrow -->
+                <div style="font-size: 2rem; color: #cbd5e1; align-self: center;">➜</div>
+
+                <!-- Step 2 -->
+                <div style="text-align: center; width: 200px;">
+                    <div
+                        style="width: 60px; height: 60px; background: var(--secondary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+                        2</div>
+                    <h3 style="margin-bottom: 0.5rem;">Fill Details</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Enter what you need the cash for and the
+                        amount.</p>
+                </div>
+
+                <!-- Arrow -->
+                <div style="font-size: 2rem; color: #cbd5e1; align-self: center;">➜</div>
+
+                <!-- Step 3 -->
+                <div style="text-align: center; width: 200px;">
+                    <div
+                        style="width: 60px; height: 60px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0 auto 1rem;">
+                        3</div>
+                    <h3 style="margin-bottom: 0.5rem;">Instant Send</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">Manager gets an email. Approval is
+                        tracked.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: Important Approval Info -->
+        <div class="slide">
+            <h2 style="color: #b91c1c;">⚠️ For Managers Only</h2>
+            <p style="margin-bottom: 2rem;">Please pay attention to this one-time security step.</p>
+
+            <div
+                style="background: #fff1f2; border: 2px solid #e11d48; border-radius: 12px; padding: 2rem; max-width: 700px; text-align: left;">
+                <h3 style="color: #9f1239; display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
+                    <span>🚨</span> One-Time Activation
+                </h3>
+                <p style="line-height: 1.6; color: #881337;">
+                    When you receive your <strong>FIRST</strong> voucher request, you will get an email from
+                    <strong>"FormSubmit"</strong>.
+                </p>
+                <ul style="margin: 1rem 0 1rem 2rem; color: #881337;">
+                    <li>Check your Spam/Junk folder.</li>
+                    <li>Click the <strong>"Activate"</strong> button in that email.</li>
+                    <li>This only happens once.</li>
+                </ul>
+                <p style="font-weight: bold; font-style: italic; color: #881337;">
+                    If you don't click activate, you will not receive the voucher!
+                </p>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: Demo -->
+        <div class="slide">
+            <h2>📱 Live Demo</h2>
+            <p class="subtitle">Take out your systems and try it now.</p>
+
+            <a href="https://cash-voucher.netlify.app/" target="_blank" class="btn-link"
+                style="padding: 1rem 3rem; font-size: 1.5rem;">
+                Open App
+            </a>
+
+            <div
+                style="margin-top: 3rem; background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: var(--shadow);">
+                <h3 style="margin-bottom: 1rem;">🎓 Mini-Workshop:</h3>
+                <ul style="list-style: none; text-align: left; font-size: 1.1rem; line-height: 1.8;">
+                    <li>1. Create a "Petty Cash" request for "Office Supplies" - ₦1,000.</li>
+                    <li>2. In "Approved By", enter <strong>YOUR OWN EMAIL</strong>.</li>
+                    <li>3. Click Send.</li>
+                    <li>4. Check your email (and spam) to see the result.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: FAQ -->
+        <div class="slide">
+            <h2>Common Questions</h2>
+            <div class="features-container">
+                <div class="feature-box">
+                    <h3>📧 Didn't get an email?</h3>
+                    <p>99% of the time, it's in the <strong>Spam Folder</strong>. Please check there.</p>
+                </div>
+                <div class="feature-box">
+                    <h3>✍️ Made a typo?</h3>
+                    <p>Just create a new voucher. We only process approved ones.</p>
+                </div>
+                <div class="feature-box">
+                    <h3>📎 Receipts?</h3>
+                    <p>You can email them separately for now. Upload support coming in V2.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: END -->
+        <div class="slide">
+            <h1>Thank You</h1>
+            <p class="subtitle">Data is the new Oil. Let's start mining it.</p>
+
+            <div style="margin-top: 3rem;">
+                <a href="https://cash-voucher.netlify.app/"
+                    style="font-size: 1.5rem; color: var(--primary); font-weight: 700; text-decoration: none;">
+                    cash-voucher.netlify.app
+                </a>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: Feedback & Roadmap -->
+        <div class="slide">
+            <h2>Future Improvements</h2>
+            <p class="subtitle">We value your input and are already working on:</p>
+
+            <div class="vision-card"
+                style="max-width: 800px; width: 90%; margin-top: 2rem; border-top: 6px solid var(--accent-purple);">
+                <h3 style="color: var(--secondary); margin-bottom: 2rem;">🚧 Roadmap:</h3>
+
+                <ul class="vision-list"
+                    style="font-size: 1.3rem; margin: 0 auto; display: inline-block; text-align: left;">
+                    <li style="margin-bottom: 1.5rem; display: flex; align-items: center;">
+                        <span style="font-size: 2rem; margin-right: 20px;">📱</span>
+                        <strong>Mobile Friendliness</strong>
+                    </li>
+                    <li style="margin-bottom: 1.5rem; display: flex; align-items: center;">
+                        <span style="font-size: 2rem; margin-right: 20px;">🗣️</span>
+                        <strong>Addressing Your Feedback</strong>
+                    </li>
+                    <li style="margin-bottom: 1.5rem; display: flex; align-items: center;">
+                        <span style="font-size: 2rem; margin-right: 20px;">🔄</span>
+                        <strong>End-to-End Tracking</strong>
+                    </li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 3rem; color: var(--text-secondary); font-size: 0.9rem;">
+                This is just the beginning.
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button class="nav-btn" onclick="prevSlide()">❮</button>
+        <button class="nav-btn" onclick="nextSlide()">❯</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const progressBar = document.getElementById('progressBar');
+        const counter = document.getElementById('slideCounter');
+
+        function update() {
+            slides.forEach((slide, idx) => {
+                slide.classList.remove('active');
+                if (idx === currentSlide) slide.classList.add('active');
+            });
+            progressBar.style.width = ((currentSlide + 1) / slides.length) * 100 + '%';
+            counter.innerText = `${currentSlide + 1} / ${slides.length}`;
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                update();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                update();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // Touch Swipe
+        let touchStart = 0;
+        document.addEventListener('touchstart', e => touchStart = e.changedTouches[0].screenX);
+        document.addEventListener('touchend', e => {
+            if (e.changedTouches[0].screenX < touchStart - 50) nextSlide();
+            if (e.changedTouches[0].screenX > touchStart + 50) prevSlide();
+        });
+
+        update();
+    </script>
+</body>
+
+</html>
